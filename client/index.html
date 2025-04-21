@@ -3,11 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <title>HATM Token Staking</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    
+    <!-- Add a message about opening in a new tab -->
+    <div id="replit-instructions" style="display: none; position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 15px; border-radius: 10px; max-width: 300px; z-index: 9999;">
+      <strong>⚠️ Wallet Not Working?</strong><br>
+      <p>Please open this app in a new tab for full functionality with Phantom wallet.</p>
+      <button onclick="window.open(window.location.href, '_blank')" style="background: #8855ff; border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Open in New Tab</button>
+      <button onclick="document.getElementById('replit-instructions').style.display='none'" style="background: transparent; border: 1px solid white; color: white; padding: 8px 12px; border-radius: 4px; margin-left: 8px; cursor: pointer;">Dismiss</button>
+    </div>
+    
+    <script>
+      // Check if we're in Replit's iframe/preview
+      // If so, show the instructions
+      setTimeout(() => {
+        // Check if window.solana is available
+        if (window.top !== window.self || !window.solana) {
+          document.getElementById('replit-instructions').style.display = 'block';
+        }
+      }, 2000);
+    </script>
   </body>
 </html>

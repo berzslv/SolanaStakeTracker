@@ -306,32 +306,38 @@ export function useStaking() {
           description: "Building a direct token transfer transaction instead..."
         });
         
+        // IMPORTANT NOTE FOR REPLIT USERS:
+        console.log("REPLIT USERS: If you're seeing transaction issues, please open the app in a new tab for proper wallet connectivity.");
+        
         // Import SPL Token function
         const { createTransferInstruction } = await import('@solana/spl-token');
         
-        // Create new transaction
+        // Create new transaction with minimal configuration
         const transferTx = new Transaction();
+        
+        // Calculate exact token amount with decimal precision 
+        const tokenAmount = Math.floor(amount * Math.pow(10, DECIMALS));
         
         // Create a basic SPL token transfer instruction
         const transferInstruction = createTransferInstruction(
-          userTokenAccount,                            // from
-          vaultTokenAccount,                           // to
-          publicKey,                                   // authority (wallet)
-          Math.floor(amount * Math.pow(10, DECIMALS))  // amount with decimals (use Math.floor to avoid floating point issues)
+          userTokenAccount,                // from
+          vaultTokenAccount,               // to
+          publicKey,                       // authority (wallet)
+          tokenAmount                      // amount with decimals (use Math.floor to avoid floating point issues)
         );
         
         // Add the instruction to the transaction
         transferTx.add(transferInstruction);
         transferTx.feePayer = publicKey;
         
-        // Get a recent blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        // Get a recent blockhash - critical for transaction validity
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
         transferTx.recentBlockhash = blockhash;
         
         // Show message to user
         toast({
           title: "Approve Transaction",
-          description: "Please approve the token transfer transaction."
+          description: "Please approve the token transfer transaction in your wallet."
         });
         
         // Sign and send transaction
@@ -339,50 +345,61 @@ export function useStaking() {
           from: userTokenAccount.toString(),
           to: vaultTokenAccount.toString(),
           amount: amount,
-          lamports: Math.floor(amount * Math.pow(10, DECIMALS))
+          lamports: tokenAmount
         });
         
-        // Use preflightCommitment: 'processed' to improve chances of success
-        const transferSignature = await sendTransaction(transferTx, connection, {
-          preflightCommitment: 'processed',
-          skipPreflight: true // Skip preflight checks to avoid client-side rejections
-        });
-        
-        console.log("Token transfer sent with signature:", transferSignature);
-        
-        // Wait for confirmation
-        toast({
-          title: "Transaction sent",
-          description: "Waiting for network confirmation..."
-        });
-        
-        const transferConfirmation = await connection.confirmTransaction({
-          signature: transferSignature,
-          blockhash,
-          lastValidBlockHeight
-        }, 'processed'); // Use processed commitment level
-        
-        console.log("Transfer confirmation:", transferConfirmation);
-        
-        if (transferConfirmation.value.err) {
-          console.error("Transfer confirmation error:", transferConfirmation.value.err);
+        // Send with minimal options - simplicity is best here
+        try {
+          const transferSignature = await sendTransaction(transferTx, connection);
+          console.log("Token transfer sent with signature:", transferSignature);
+          
+          // Wait for confirmation
           toast({
-            title: "Transaction failed",
-            description: "The token transfer failed to complete. Please try again.",
+            title: "Transaction sent",
+            description: "Waiting for network confirmation..."
+          });
+          
+          // Use confirmed commitment level for added reliability
+          const transferConfirmation = await connection.confirmTransaction({
+            signature: transferSignature,
+            blockhash,
+            lastValidBlockHeight
+          }, 'confirmed');
+          
+          console.log("Transfer confirmation:", transferConfirmation);
+          
+          if (transferConfirmation.value.err) {
+            console.error("Transfer confirmation error:", transferConfirmation.value.err);
+            toast({
+              title: "Transaction failed",
+              description: "The token transfer failed to complete. Please try again.",
+              variant: "destructive"
+            });
+            return null;
+          }
+          
+          toast({
+            title: "Tokens transferred",
+            description: `Successfully transferred ${amount} HATM tokens to the staking vault!`
+          });
+          
+          // Update balances
+          await refreshBalances();
+          
+          return transferSignature;
+        
+        } catch (error) {
+          console.error("Error sending transaction:", error);
+          
+          // The most likely case on Replit - provide clear guidance
+          toast({
+            title: "Transaction Issue in Replit",
+            description: "Please 'Open in new tab' using the button below the app to use wallet features properly.",
             variant: "destructive"
           });
-          return null;
+          
+          throw error;
         }
-        
-        toast({
-          title: "Tokens transferred",
-          description: `Successfully transferred ${amount} HATM tokens to the staking vault!`
-        });
-        
-        // Update balances
-        await refreshBalances();
-        
-        return transferSignature;
       } catch (error: any) {
         console.error("Transaction error:", error);
         
