@@ -8,7 +8,7 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { BN } from 'bn.js';
-import { PROGRAM_ID, TOKEN_MINT_ADDRESS } from './constants';
+import { PROGRAM_ID, TOKEN_MINT_ADDRESS, VERIFIED_VAULT_ADDRESS } from './constants';
 
 // IDL for the referral staking program (from official IDL)
 export const StakingIDL = {"version":"0.1.0","name":"referral_staking","instructions":[{"name":"initialize","accounts":[{"name":"authority","isMut":true,"isSigner":true},{"name":"tokenMint","isMut":false,"isSigner":false},{"name":"vault","isMut":true,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false},{"name":"tokenProgram","isMut":false,"isSigner":false},{"name":"rent","isMut":false,"isSigner":false}],"args":[{"name":"rewardRate","type":"u64"},{"name":"unlockDuration","type":"i64"},{"name":"earlyUnstakePenalty","type":"u64"},{"name":"minStakeAmount","type":"u64"},{"name":"referralRewardRate","type":"u64"}]},{"name":"registerUser","accounts":[{"name":"owner","isMut":true,"isSigner":true},{"name":"userInfo","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false},{"name":"rent","isMut":false,"isSigner":false}],"args":[{"name":"referrer","type":{"option":"publicKey"}}]},{"name":"stake","accounts":[{"name":"owner","isMut":true,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"userInfo","isMut":true,"isSigner":false},{"name":"userTokenAccount","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"tokenProgram","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"amount","type":"u64"}]},{"name":"unstake","accounts":[{"name":"owner","isMut":true,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"userInfo","isMut":true,"isSigner":false},{"name":"userTokenAccount","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"tokenProgram","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"amount","type":"u64"}]},{"name":"claimRewards","accounts":[{"name":"owner","isMut":true,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"userInfo","isMut":true,"isSigner":false},{"name":"userTokenAccount","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"tokenProgram","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"compoundRewards","accounts":[{"name":"owner","isMut":true,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"userInfo","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"addToRewardPool","accounts":[{"name":"authority","isMut":true,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"userTokenAccount","isMut":true,"isSigner":false},{"name":"vault","isMut":true,"isSigner":false},{"name":"tokenProgram","isMut":false,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"amount","type":"u64"}]},{"name":"updateParameters","accounts":[{"name":"authority","isMut":false,"isSigner":true},{"name":"globalState","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"rewardRate","type":{"option":"u64"}},{"name":"unlockDuration","type":{"option":"i64"}},{"name":"earlyUnstakePenalty","type":{"option":"u64"}},{"name":"minStakeAmount","type":{"option":"u64"}},{"name":"referralRewardRate","type":{"option":"u64"}}]}],"accounts":[{"name":"UserInfo","type":{"kind":"struct","fields":[{"name":"owner","type":"publicKey"},{"name":"stakedAmount","type":"u64"},{"name":"rewards","type":"u64"},{"name":"lastStakeTime","type":"i64"},{"name":"lastClaimTime","type":"i64"},{"name":"referrer","type":{"option":"publicKey"}},{"name":"referralCount","type":"u64"},{"name":"totalReferralRewards","type":"u64"}]}},{"name":"GlobalState","type":{"kind":"struct","fields":[{"name":"authority","type":"publicKey"},{"name":"tokenMint","type":"publicKey"},{"name":"vault","type":"publicKey"},{"name":"rewardRate","type":"u64"},{"name":"unlockDuration","type":"i64"},{"name":"earlyUnstakePenalty","type":"u64"},{"name":"minStakeAmount","type":"u64"},{"name":"referralRewardRate","type":"u64"},{"name":"totalStaked","type":"u64"},{"name":"stakersCount","type":"u64"},{"name":"rewardPool","type":"u64"},{"name":"lastUpdateTime","type":"i64"},{"name":"bump","type":"u8"}]}}],"errors":[{"code":6000,"name":"Unauthorized","msg":"Unauthorized operation"},{"code":6001,"name":"InvalidOwner","msg":"Invalid owner"},{"code":6002,"name":"InvalidMint","msg":"Invalid mint"},{"code":6003,"name":"InvalidVault","msg":"Invalid vault"},{"code":6004,"name":"InvalidMintAuthority","msg":"Invalid mint authority"},{"code":6005,"name":"AmountTooSmall","msg":"Amount too small"},{"code":6006,"name":"InsufficientStakedAmount","msg":"Insufficient staked amount"},{"code":6007,"name":"NoRewardsToClaim","msg":"No rewards to claim"},{"code":6008,"name":"InsufficientRewardPool","msg":"Insufficient reward pool"},{"code":6009,"name":"PenaltyTooHigh","msg":"Early unstake penalty too high (max 50%)"},{"code":6010,"name":"ReferralRateTooHigh","msg":"Referral reward rate too high (max 20%)"}]};
@@ -108,24 +108,15 @@ export const getGlobalState = async (connection: Connection): Promise<{ vault: P
 };
 
 // Find the token vault account for the referral staking program
-export const findTokenVaultAccount = async (connection?: Connection) => {
+export const findTokenVaultAccount = async () => {
   try {
-    // Analyzing the successful transaction: 62gGMXiZtgY8wmZkpyPyT8PCPeKQH3dCMQDA9zFkjPfRZu2rochs8RWeuAFf8eNSZkzf5uVMSDB4gQ6NTfsfYBtQ
-    // We need to use a specific vault address
-    
-    // Direct vault address known to work with the deployed program
-    // This value was obtained from a successful staking transaction
-    const vaultAddress = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
-    console.log("Using verified vault address:", vaultAddress.toString());
-    
-    return vaultAddress;
+    // Use the verified vault address from constants.ts
+    console.log("Using verified vault address:", VERIFIED_VAULT_ADDRESS.toString());
+    return VERIFIED_VAULT_ADDRESS;
   } catch (error) {
-    console.error("Error finding token vault account:", error);
-    
-    // Last resort fallback - use the same known working address
-    const vaultAddress = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
-    console.log("Using emergency fallback vault address after error:", vaultAddress.toString());
-    return vaultAddress;
+    console.error("Error getting vault address:", error);
+    // Return the constant anyway (this catch is mostly for TypeScript errors)
+    return VERIFIED_VAULT_ADDRESS;
   }
 };
 

@@ -14,3 +14,9 @@ export const MINT_AUTHORITY_TOKEN_ACCOUNT = new PublicKey("3kSMBi1a6HaHGwxHTebnA
 
 // Solscan base URL
 export const SOLSCAN_URL = "https://solscan.io";
+
+// Verified vault address - from successful staking transaction
+export const VERIFIED_VAULT_ADDRESS = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
+
+// Token decimals (likely 9 for HATM token based on your code)
+export const DECIMALS = 9;
