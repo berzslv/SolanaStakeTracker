@@ -121,10 +121,16 @@ const SolanaStakingWidget: React.FC = () => {
   
   // Handle max buttons
   const handleMaxStake = () => {
-    console.log("Setting max stake amount:", tokenBalance);
-    setStakeAmount(tokenBalance.toString());
+    const formattedAmount = tokenBalance > 0 ? tokenBalance.toString() : "0";
+    console.log("Setting max stake amount:", formattedAmount);
+    setStakeAmount(formattedAmount);
   };
-  const handleMaxUnstake = () => setUnstakeAmount(stakedAmount.toString());
+  
+  const handleMaxUnstake = () => {
+    const formattedAmount = stakedAmount > 0 ? stakedAmount.toString() : "0";
+    console.log("Setting max unstake amount:", formattedAmount);
+    setUnstakeAmount(formattedAmount);
+  };
   
   return (
     <div className="space-y-8">
@@ -215,6 +221,10 @@ const SolanaStakingWidget: React.FC = () => {
                   onClick={handleMaxStake}
                   className="text-xs text-primary hover:underline"
                   disabled={isLoading || isProcessing || tokenBalance === 0}
+                  style={{
+                    opacity: tokenBalance > 0 ? 1 : 0.5,
+                    fontWeight: tokenBalance > 0 ? 'bold' : 'normal',
+                  }}
                 >
                   MAX
                 </button>
@@ -260,6 +270,14 @@ const SolanaStakingWidget: React.FC = () => {
             onClick={handleStake}
             disabled={isLoading || isProcessing || !publicKey || !isRegistered || !stakeAmount || parseFloat(stakeAmount) <= 0}
             className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
+            onMouseOver={() => console.log("Stake button check - disabled conditions:", {
+              isLoading,
+              isProcessing, 
+              noPublicKey: !publicKey, 
+              notRegistered: !isRegistered, 
+              noStakeAmount: !stakeAmount,
+              invalidAmount: stakeAmount && parseFloat(stakeAmount) <= 0
+            })}
           >
             {isProcessing ? (
               <>

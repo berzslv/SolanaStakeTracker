@@ -187,12 +187,10 @@ export function useStaking() {
         setTokenBalance(0);
       }
       
-      // Check if user is registered
-      const isUserRegistered = await checkUserRegistration();
-      setIsRegistered(isUserRegistered);
+      // We're not checking registration status here anymore, handled in useEffect
       
       // Get staked amount if registered
-      if (isUserRegistered) {
+      if (isRegistered) {
         try {
           const program = getProgram();
           if (!program) return;
@@ -247,7 +245,7 @@ export function useStaking() {
       const tokenVaultAccount = await findTokenVaultPDA();
       
       // Get user's token account
-      const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT, publicKey);
+      const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
       
       // Create stake instruction
       const tx = await program.methods
@@ -308,7 +306,7 @@ export function useStaking() {
       const tokenVaultAccount = await findTokenVaultPDA();
       
       // Get user's token account
-      const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT, publicKey);
+      const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
       
       // Create unstake instruction
       const tx = await program.methods
@@ -356,10 +354,19 @@ export function useStaking() {
   // Initial fetch when wallet connects
   useEffect(() => {
     if (publicKey) {
-      refreshBalances();
+      // Check if user is registered first
+      const checkRegistration = async () => {
+        const isUserRegistered = await checkUserRegistration();
+        console.log("User registration check:", isUserRegistered);
+        setIsRegistered(isUserRegistered);
+        refreshBalances();
+      };
+      
+      checkRegistration();
     } else {
       setTokenBalance(0);
       setStakedAmount(0);
+      setIsRegistered(false);
     }
   }, [publicKey, connection]);
 
