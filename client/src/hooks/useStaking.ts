@@ -171,17 +171,40 @@ export function useStaking() {
         }
       });
       
-      // Send transaction with retries
+      // Send transaction with special error handling for Phantom wallet
       let retries = 3;
       let signature = null;
       
+      const handleTransaction = async () => {
+        try {
+          // Prepare a more detailed error message for the user
+          const sigResult = await sendTransaction(tx, connection, {
+            skipPreflight: true  // Skip preflight to avoid some common issues
+          });
+          console.log("Transaction sent with signature:", sigResult);
+          return sigResult;
+        } catch (err: any) {
+          console.error("Send transaction attempt failed:", err);
+          
+          // Handle different error types
+          if (err.name === 'WalletSendTransactionError') {
+            // This is likely a Phantom wallet issue in the Replit environment
+            toast({
+              title: "Wallet Transaction Error",
+              description: "Please try again with your Phantom wallet. You may need to approve the transaction in your wallet extension.",
+              variant: "destructive"
+            });
+          }
+          
+          throw err;
+        }
+      };
+      
       while (retries > 0 && !signature) {
         try {
-          signature = await sendTransaction(tx, connection);
-          console.log("Transaction sent with signature:", signature);
+          signature = await handleTransaction();
           break; // Exit the loop if successful
         } catch (err) {
-          console.error("Send transaction attempt failed:", err);
           retries--;
           if (retries === 0) throw err;
           await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
@@ -375,34 +398,65 @@ export function useStaking() {
       tx.recentBlockhash = blockhash;
       tx.feePayer = publicKey;
       
-      // Send transaction
-      const signature = await sendTransaction(tx, connection);
+      // Send transaction with better error handling
+      let signature = null;
       
-      // Wait for confirmation with proper format
-      if (signature) {
-        await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight
+      try {
+        // Use improved transaction handling with skipPreflight
+        signature = await sendTransaction(tx, connection, {
+          skipPreflight: true // Skip preflight to avoid some common issues in the Replit environment
+        });
+        
+        // Wait for confirmation with proper format
+        if (signature) {
+          await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          });
+        }
+        
+        toast({
+          title: "Staking successful",
+          description: `You've staked ${amount} HATM tokens`
+        });
+        
+        // Update the last update time to prevent excessive refreshes
+        setLastUpdateTime(Date.now());
+        
+        // Refresh balances
+        await refreshBalances();
+        
+        return signature;
+      } catch (txErr: any) {
+        console.error("Transaction error:", txErr);
+        
+        // Special handling for WalletSendTransactionError
+        if (txErr?.name === 'WalletSendTransactionError') {
+          toast({
+            title: "Wallet Error",
+            description: "Please check your wallet connection and try again. Make sure to approve the transaction in your wallet extension.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Staking failed",
+            description: txErr?.message || "There was an error staking your tokens",
+            variant: "destructive"
+          });
+        }
+        
+        throw txErr;
+      }
+    } catch (error: any) {
+      console.error("Stake error:", error);
+      if (!error?.name?.includes('WalletSendTransactionError')) {
+        toast({
+          title: "Staking failed",
+          description: error?.message || "There was an error staking your tokens",
+          variant: "destructive"
         });
       }
-      
-      toast({
-        title: "Staking successful",
-        description: `You've staked ${amount} HATM tokens`
-      });
-      
-      // Refresh balances
-      await refreshBalances();
-      
-      return signature;
-    } catch (error) {
-      console.error("Stake error:", error);
-      toast({
-        title: "Staking failed",
-        description: "There was an error staking your tokens",
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setIsProcessing(false);
@@ -448,49 +502,100 @@ export function useStaking() {
       tx.recentBlockhash = blockhash;
       tx.feePayer = publicKey;
       
-      // Send transaction
-      const signature = await sendTransaction(tx, connection);
+      // Send transaction with better error handling
+      let signature = null;
       
-      // Wait for confirmation with proper format
-      if (signature) {
-        await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight
+      try {
+        // Use improved transaction handling with skipPreflight
+        signature = await sendTransaction(tx, connection, {
+          skipPreflight: true // Skip preflight to avoid some common issues in the Replit environment
+        });
+        
+        // Wait for confirmation with proper format
+        if (signature) {
+          await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          });
+        }
+        
+        toast({
+          title: "Unstaking successful",
+          description: `You've unstaked ${amount} HATM tokens`
+        });
+        
+        // Update the last update time to prevent excessive refreshes
+        setLastUpdateTime(Date.now());
+        
+        // Refresh balances
+        await refreshBalances();
+        
+        return signature;
+      } catch (txErr: any) {
+        console.error("Transaction error:", txErr);
+        
+        // Special handling for WalletSendTransactionError
+        if (txErr?.name === 'WalletSendTransactionError') {
+          toast({
+            title: "Wallet Error",
+            description: "Please check your wallet connection and try again. Make sure to approve the transaction in your wallet extension.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Unstaking failed",
+            description: txErr?.message || "There was an error unstaking your tokens",
+            variant: "destructive"
+          });
+        }
+        
+        throw txErr;
+      }
+    } catch (error: any) {
+      console.error("Unstake error:", error);
+      if (!error?.name?.includes('WalletSendTransactionError')) {
+        toast({
+          title: "Unstaking failed",
+          description: error?.message || "There was an error unstaking your tokens",
+          variant: "destructive"
         });
       }
-      
-      toast({
-        title: "Unstaking successful",
-        description: `You've unstaked ${amount} HATM tokens`
-      });
-      
-      // Refresh balances
-      await refreshBalances();
-      
-      return signature;
-    } catch (error) {
-      console.error("Unstake error:", error);
-      toast({
-        title: "Unstaking failed",
-        description: "There was an error unstaking your tokens",
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Initial fetch when wallet connects
+  // Keep track of last update time to prevent excessive API calls
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+  
+  // Initial fetch when wallet connects - only once, no automatic refreshes
   useEffect(() => {
     if (publicKey) {
+      // Check if sufficient time has passed since last update (minimum 10 seconds)
+      const now = Date.now();
+      if (now - lastUpdateTime < 10000) {
+        console.log("Skipping redundant update - too soon since last update");
+        return;
+      }
+      
       // Check if user is registered first
       const checkRegistration = async () => {
-        const isUserRegistered = await checkUserRegistration();
-        console.log("User registration check:", isUserRegistered);
-        setIsRegistered(isUserRegistered);
-        refreshBalances();
+        try {
+          const isUserRegistered = await checkUserRegistration();
+          console.log("User registration check:", isUserRegistered);
+          setIsRegistered(isUserRegistered);
+          
+          // Only refresh balances if registered or it's been at least 30 seconds since last update
+          if (isUserRegistered || (now - lastUpdateTime > 30000)) {
+            refreshBalances();
+          }
+          
+          setLastUpdateTime(now);
+        } catch (error) {
+          console.error("Error in initial wallet data fetch:", error);
+        }
       };
       
       checkRegistration();
@@ -499,7 +604,7 @@ export function useStaking() {
       setStakedAmount(0);
       setIsRegistered(false);
     }
-  }, [publicKey, connection]);
+  }, [publicKey]);
 
   return {
     tokenBalance,
