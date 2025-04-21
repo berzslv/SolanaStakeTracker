@@ -57,23 +57,26 @@ export function useStaking() {
     }
   }, [publicKey, connection]);
 
-  // Find PDAs
+  // Find PDAs - completely rewritten based on the smart contract's logic
+  
+  // Find user stake info account
   const findUserInfoAccount = useCallback(() => {
     if (!publicKey) return null;
     
-    // Based on IDL it's "userInfo" 
+    // The exact seed used in the contract: "user_info", user public key
     const [userInfoPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from('user'), new PublicKey(publicKey).toBuffer()],
+      [Buffer.from('user_info'), new PublicKey(publicKey).toBuffer()],
       new PublicKey(PROGRAM_ID)
     );
-    console.log('User info PDA:', userInfoPDA.toString());
+    console.log('User stake info PDA:', userInfoPDA.toString());
     return userInfoPDA;
   }, [publicKey]);
   
-  // This corresponds to "vault" in the IDL
+  // Find staking vault account
   const findVaultAccount = useCallback(() => {
+    // Based on contract: the main "vault" PDA (also called "StakingVault")
     const [vaultPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from('vault')],
+      [Buffer.from('staking_vault')],
       new PublicKey(PROGRAM_ID)
     );
     console.log('Vault PDA:', vaultPDA.toString());
@@ -82,6 +85,7 @@ export function useStaking() {
   
   // This corresponds to "vaultAuthority" in the IDL
   const findVaultAuthorityAccount = useCallback(() => {
+    // Based on contract: the vault authority that can sign on behalf of the vault
     const [vaultAuthorityPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('vault_authority')],
       new PublicKey(PROGRAM_ID)
@@ -90,11 +94,18 @@ export function useStaking() {
     return vaultAuthorityPDA;
   }, []);
   
+  // Find vault token account (the actual token account owned by the vault)
   const findVaultTokenAccount = useCallback(() => {
+    // Get token vault address - this is different from the vault itself
+    // The token mint and the vault authority combine to find the token account
     const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
-    // In this program, the vault is also the token account
-    return findVaultAccount();
-  }, [findVaultAccount]);
+    const [tokenVaultPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from('token_vault')],
+      new PublicKey(PROGRAM_ID)
+    );
+    console.log('Token vault PDA:', tokenVaultPDA.toString());
+    return tokenVaultPDA;
+  }, []);
 
   // Get Anchor program
   const getProgram = useCallback(() => {
