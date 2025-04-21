@@ -17,13 +17,13 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from "@project-serum/anchor";
 
 // Convert number to BN with proper decimal handling
-const toBN = (amount: number): anchor.BN => {
+const toBN = (amount: number): typeof anchor.BN => {
   // Assuming 6 decimals for the token
   return new anchor.BN(amount * 10 ** 6);
 };
 
 // Convert BN to number with proper decimal handling
-const fromBN = (amount: anchor.BN): number => {
+const fromBN = (amount: typeof anchor.BN): number => {
   return amount.toNumber() / 10 ** 6;
 };
 
