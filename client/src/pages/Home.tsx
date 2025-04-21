@@ -4,38 +4,40 @@ import { WalletContext } from "@/components/WalletProvider";
 import { TOKEN_MINT_ADDRESS, SOLSCAN_URL } from "@/utils/constants";
 import { formatAddress, getYear } from "@/utils/helpers";
 import { Button } from "@/components/ui/button";
+import { useStaking } from "@/hooks/useStaking";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import TransactionStatus from "@/components/TransactionStatus";
+import { Loader2 } from "lucide-react";
 
-// Simplified Home page that doesn't rely on complex components
 export default function Home() {
   const { connected, publicKey, connect, disconnect, connecting } = useContext(WalletContext);
   const { toast } = useToast();
   
-  // Simplified state for balances
-  const [tokenBalance, setTokenBalance] = useState<number>(0);
-  const [stakedBalance, setStakedBalance] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Use our staking hook instead of local state
+  const { 
+    tokenBalance, 
+    stakedAmount, 
+    isLoading, 
+    isProcessing,
+    refreshBalances,
+    stake,
+    unstake
+  } = useStaking();
+  
   const [stakeAmount, setStakeAmount] = useState<string>("");
   const [unstakeAmount, setUnstakeAmount] = useState<string>("");
-  
-  // Simulate loading token balances (without using Buffer-dependent code)
-  useEffect(() => {
-    if (connected && publicKey) {
-      setIsLoading(true);
-      
-      // Simulate API call with timeout
-      const timer = setTimeout(() => {
-        // Demo values
-        setTokenBalance(100);
-        setStakedBalance(50);
-        setIsLoading(false);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [connected, publicKey]);
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    await refreshBalances();
+    toast({
+      title: "Balances refreshed",
+      description: "Your token balances have been updated"
+    });
+  };
   
   // Handle stake action
-  const handleStake = () => {
+  const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) {
       toast({
         title: "Invalid amount",
@@ -56,19 +58,17 @@ export default function Home() {
       return;
     }
     
-    // Update balances (simulated for demo)
-    setTokenBalance(prev => prev - amount);
-    setStakedBalance(prev => prev + amount);
-    setStakeAmount("");
-    
-    toast({
-      title: "Tokens staked successfully",
-      description: `You have staked ${amount} HATM tokens`,
-    });
+    try {
+      await stake(amount);
+      setStakeAmount("");
+    } catch (error) {
+      console.error("Stake error:", error);
+      // Error is already handled in the useStaking hook
+    }
   };
   
   // Handle unstake action
-  const handleUnstake = () => {
+  const handleUnstake = async () => {
     if (!unstakeAmount || parseFloat(unstakeAmount) <= 0) {
       toast({
         title: "Invalid amount",
@@ -80,7 +80,7 @@ export default function Home() {
     
     const amount = parseFloat(unstakeAmount);
     
-    if (amount > stakedBalance) {
+    if (amount > stakedAmount) {
       toast({
         title: "Insufficient staked balance",
         description: "You don't have enough staked tokens to unstake this amount",
@@ -89,15 +89,13 @@ export default function Home() {
       return;
     }
     
-    // Update balances (simulated for demo)
-    setTokenBalance(prev => prev + amount);
-    setStakedBalance(prev => prev - amount);
-    setUnstakeAmount("");
-    
-    toast({
-      title: "Tokens unstaked successfully",
-      description: `You have unstaked ${amount} HATM tokens`,
-    });
+    try {
+      await unstake(amount);
+      setUnstakeAmount("");
+    } catch (error) {
+      console.error("Unstake error:", error);
+      // Error is already handled in the useStaking hook
+    }
   };
 
   return (
@@ -114,14 +112,19 @@ export default function Home() {
             <span className="text-xl font-semibold text-gray-800 dark:text-white">HATM Token Staking</span>
           </div>
           
-          {/* Inline wallet connect button instead of separate component */}
+          {/* Wallet connection */}
           {!connected ? (
             <Button 
               onClick={connect} 
               disabled={connecting}
               className="bg-primary text-white hover:bg-primary/90"
             >
-              {connecting ? "Connecting..." : "Connect Wallet"}
+              {connecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : "Connect Wallet"}
             </Button>
           ) : (
             <div className="flex items-center space-x-2">
@@ -155,14 +158,37 @@ export default function Home() {
               className="bg-primary text-white hover:bg-primary/90"
               size="lg"
             >
-              {connecting ? "Connecting..." : "Connect Wallet"}
+              {connecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : "Connect Wallet"}
             </Button>
           </div>
         ) : (
           <div className="grid gap-6">
+            {/* Transaction Status */}
+            <TransactionStatus />
+            
             {/* Balance Display */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Your Balance</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Your Balance</h2>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Refreshing...
+                    </>
+                  ) : "Refresh"}
+                </Button>
+              </div>
               
               {isLoading ? (
                 <div className="flex justify-center items-center h-20">
@@ -176,9 +202,17 @@ export default function Home() {
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
                     <div className="text-sm text-gray-500 dark:text-gray-400">Staked Balance</div>
-                    <div className="text-2xl font-bold mt-1">{stakedBalance.toLocaleString()} HATM</div>
+                    <div className="text-2xl font-bold mt-1">{stakedAmount.toLocaleString()} HATM</div>
                   </div>
                 </div>
+              )}
+              
+              {tokenBalance === 0 && (
+                <Alert className="mt-4">
+                  <AlertDescription>
+                    You don't have any HATM tokens in your wallet. You need to acquire some tokens before you can stake.
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
             
@@ -196,6 +230,7 @@ export default function Home() {
                       <button 
                         className="text-xs text-primary hover:underline" 
                         onClick={() => setStakeAmount(tokenBalance.toString())}
+                        disabled={tokenBalance <= 0}
                       >
                         Max
                       </button>
@@ -207,6 +242,7 @@ export default function Home() {
                         onChange={(e) => setStakeAmount(e.target.value)}
                         placeholder="0"
                         className="w-full rounded-l-md border border-gray-300 dark:border-gray-600 px-3 py-2 dark:bg-gray-800"
+                        disabled={isProcessing || tokenBalance <= 0}
                       />
                       <div className="bg-gray-200 dark:bg-gray-600 px-3 py-2 rounded-r-md flex items-center">
                         HATM
@@ -216,9 +252,19 @@ export default function Home() {
                   <Button 
                     onClick={handleStake}
                     className="w-full" 
-                    disabled={!stakeAmount || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > tokenBalance}
+                    disabled={
+                      isProcessing || 
+                      !stakeAmount || 
+                      parseFloat(stakeAmount) <= 0 || 
+                      parseFloat(stakeAmount) > tokenBalance
+                    }
                   >
-                    Stake Tokens
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : "Stake Tokens"}
                   </Button>
                 </div>
                 
@@ -230,7 +276,8 @@ export default function Home() {
                       <label className="text-sm text-gray-500 dark:text-gray-400">Amount</label>
                       <button 
                         className="text-xs text-primary hover:underline" 
-                        onClick={() => setUnstakeAmount(stakedBalance.toString())}
+                        onClick={() => setUnstakeAmount(stakedAmount.toString())}
+                        disabled={stakedAmount <= 0}
                       >
                         Max
                       </button>
@@ -242,6 +289,7 @@ export default function Home() {
                         onChange={(e) => setUnstakeAmount(e.target.value)}
                         placeholder="0"
                         className="w-full rounded-l-md border border-gray-300 dark:border-gray-600 px-3 py-2 dark:bg-gray-800"
+                        disabled={isProcessing || stakedAmount <= 0}
                       />
                       <div className="bg-gray-200 dark:bg-gray-600 px-3 py-2 rounded-r-md flex items-center">
                         HATM
@@ -251,10 +299,20 @@ export default function Home() {
                   <Button 
                     onClick={handleUnstake}
                     className="w-full" 
-                    disabled={!unstakeAmount || parseFloat(unstakeAmount) <= 0 || parseFloat(unstakeAmount) > stakedBalance}
+                    disabled={
+                      isProcessing || 
+                      !unstakeAmount || 
+                      parseFloat(unstakeAmount) <= 0 || 
+                      parseFloat(unstakeAmount) > stakedAmount
+                    }
                     variant="outline"
                   >
-                    Unstake Tokens
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : "Unstake Tokens"}
                   </Button>
                 </div>
               </div>

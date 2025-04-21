@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
 
 interface Transaction {
   status: 'success' | 'error' | null;
@@ -26,7 +26,13 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <TransactionContext.Provider value={{ transaction, setTransactionStatus, clearTransactionStatus }}>
+    <TransactionContext.Provider
+      value={{
+        transaction,
+        setTransactionStatus,
+        clearTransactionStatus
+      }}
+    >
       {children}
     </TransactionContext.Provider>
   );
