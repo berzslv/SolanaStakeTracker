@@ -307,14 +307,40 @@ export function useStaking() {
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
         
+        // Use simulation to check for errors before sending
+        const simulationResult = await connection.simulateTransaction(transaction);
+        console.log("Simulation result:", simulationResult);
+        
+        if (simulationResult.value.err) {
+          console.error("Transaction simulation failed:", simulationResult.value.err);
+          toast({
+            title: "Transaction would fail",
+            description: "The transaction simulation detected errors and would fail. Please try a different amount or contact support.",
+            variant: "destructive"
+          });
+          return null;
+        }
+        
+        // Ensure blockhash is fresh
+        const latestBlockhash = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = latestBlockhash.blockhash;
+        
         // Sign and send the transaction
         toast({
           title: "Confirm transaction",
           description: "Please approve the transaction in your wallet to stake tokens."
         });
         
-        console.log("Sending stake transaction...");
-        const signature = await sendTransaction(transaction, connection);
+        console.log("Sending stake transaction with properties:", {
+          numInstructions: transaction.instructions.length,
+          feePayer: transaction.feePayer?.toString(),
+          recentBlockhash: transaction.recentBlockhash
+        });
+        
+        // Try with skipPreflight to true which will bypass client-side validation
+        const signature = await sendTransaction(transaction, connection, {
+          skipPreflight: true // Skip preflight checks to see if the issue is there
+        });
         
         console.log("Transaction sent:", signature);
         
