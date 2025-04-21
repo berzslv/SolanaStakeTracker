@@ -43,23 +43,26 @@ export function useStaking() {
 
   // Get PDAs for the staking program
   const findVaultPDA = async (): Promise<[PublicKey, number]> => {
+    console.log("Finding global_state PDA...");
     return await PublicKey.findProgramAddress(
-      [Buffer.from("vault")],
+      [Buffer.from("global_state")],
       PROGRAM_ID_PUBKEY
     );
   };
 
   const findVaultAuthorityPDA = async (): Promise<[PublicKey, number]> => {
-    const [vault] = await findVaultPDA();
+    // Based on the contract code, the vault authority is the same as the global state
+    console.log("Finding vault authority PDA (global_state)...");
     return await PublicKey.findProgramAddress(
-      [vault.toBuffer()],
+      [Buffer.from("global_state")],
       PROGRAM_ID_PUBKEY
     );
   };
 
   const findUserInfoPDA = async (owner: PublicKey): Promise<[PublicKey, number]> => {
+    console.log("Finding user_info PDA for:", owner.toString());
     return await PublicKey.findProgramAddress(
-      [Buffer.from("user"), owner.toBuffer()],
+      [Buffer.from("user_info"), owner.toBuffer()],
       PROGRAM_ID_PUBKEY
     );
   };
