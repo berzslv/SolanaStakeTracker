@@ -554,25 +554,96 @@ export function useStaking() {
         amountWithDecimals: toBN(amount).toString()
       });
       
-      // Import SPL Token instructions directly in stake function 
-      const { createApproveInstruction, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      // Try a completely different approach - use token transfer instruction from SPL token
+      // This is more compatible with how some programs expect token transfers
+      const { 
+        createTransferInstruction, 
+        getAccount: getTokenAccount
+      } = await import('@solana/spl-token');
       
-      // Create a transaction object
-      const transaction = new Transaction();
+      // First, get info about user's token account to verify balance
+      try {
+        const tokenAccountInfo = await getTokenAccount(connection, userTokenAccount);
+        console.log("User token account info:", {
+          mint: tokenAccountInfo.mint.toString(),
+          owner: tokenAccountInfo.owner.toString(),
+          amount: tokenAccountInfo.amount.toString()
+        });
+        
+        // Validate that user has enough tokens
+        const userTokenBalance = Number(tokenAccountInfo.amount);
+        const amountLamports = toBN(amount).toNumber();
+        
+        if (userTokenBalance < amountLamports) {
+          toast({
+            title: "Insufficient token balance",
+            description: `You need ${amount} HATM tokens but only have ${userTokenBalance / (10 ** DECIMALS)} available.`,
+            variant: "destructive"
+          });
+          return;
+        }
+      } catch (tokenErr) {
+        console.error("Error checking token account:", tokenErr);
+        toast({
+          title: "Token account error",
+          description: "Could not verify your token balance. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
       
-      // First, add an explicit approval instruction for the tokens
-      const approveInstruction = createApproveInstruction(
-        userTokenAccount,            // source account (user's token account)
-        vaultTokenAccount,           // delegate account (program's vault)
-        publicKey,                   // owner of source account
-        toBN(amount).toNumber()      // amount to delegate
+      // Use two separate transactions:
+      
+      // 1. First transaction - Transfer tokens directly to the vault
+      const transferTx = new Transaction();
+      
+      const transferInstruction = createTransferInstruction(
+        userTokenAccount,            // source
+        vaultTokenAccount,           // destination
+        publicKey,                   // owner
+        toBN(amount).toNumber()      // amount in lamports
       );
       
-      // Add the approval to the transaction
-      transaction.add(approveInstruction);
+      transferTx.add(transferInstruction);
+      transferTx.feePayer = publicKey;
       
-      // Then add the stake instruction
-      const stakeInstruction = await program.methods
+      // Get a fresh blockhash
+      const { blockhash: transferBlockhash, lastValidBlockHeight: transferLastValid } = 
+        await connection.getLatestBlockhash();
+      transferTx.recentBlockhash = transferBlockhash;
+      
+      // Send the first transaction (token transfer)
+      console.log("Sending token transfer transaction");
+      let transferSignature;
+      try {
+        transferSignature = await sendTransaction(transferTx, connection, {
+          skipPreflight: true
+        });
+        
+        console.log("Token transfer sent with signature:", transferSignature);
+        
+        // Wait for confirmation
+        await connection.confirmTransaction({
+          signature: transferSignature,
+          blockhash: transferBlockhash,
+          lastValidBlockHeight: transferLastValid
+        });
+        
+        console.log("Token transfer confirmed, proceeding with stake transaction");
+      } catch (transferError) {
+        console.error("Error in token transfer transaction:", transferError);
+        toast({
+          title: "Token transfer failed",
+          description: "Could not transfer tokens to the staking vault. Please try again.",
+          variant: "destructive"
+        });
+        throw transferError;
+      }
+      
+      // 2. Second transaction - Call stake function
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for transfer to settle
+      
+      const stakeTx = await program.methods
         .stake(toBN(amount))
         .accounts({
           owner: publicKey,
@@ -583,22 +654,18 @@ export function useStaking() {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
-        .instruction();
+        .transaction();
       
-      // Add the stake instruction to the transaction
-      transaction.add(stakeInstruction);
+      stakeTx.feePayer = publicKey;
       
-      // Set the transaction fee payer
-      transaction.feePayer = publicKey;
-      
-      // Get a recent blockhash to include in the transaction
+      // Get a fresh blockhash for the stake transaction
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
+      stakeTx.recentBlockhash = blockhash;
       
-      // Send the transaction
-      console.log("Sending transaction with token approval + stake instructions");
-      const signature = await sendTransaction(transaction, connection, {
-        skipPreflight: true  // Skip preflight to avoid simulation errors
+      // Send the stake transaction
+      console.log("Sending stake transaction");
+      const signature = await sendTransaction(stakeTx, connection, {
+        skipPreflight: true
       });
       
       console.log("Transaction sent with signature:", signature);
