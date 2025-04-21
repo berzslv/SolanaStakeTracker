@@ -143,27 +143,61 @@ export function useStaking() {
       console.log("User Info PDA:", userInfoPDA.toString());
       
       console.log("Building transaction...");
+      
       // Create instruction to register user with detailed logging
       const tx = await program.methods
         .registerUser() // No arguments according to IDL
         .accounts({
-          user: publicKey,
+          user: publicKey, // According to the contract expected params
           userInfo: userInfoPDA,
-          vault: vaultPDA,
+          vault: vaultPDA, // According to the contract expected params
           systemProgram: SystemProgram.programId,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY
         })
         .transaction();
       
-      console.log("Transaction built, sending...");
-      // Send transaction
-      const signature = await sendTransaction(tx, connection);
-      console.log("Transaction sent with signature:", signature);
+      // Add a bit more lamports for the fee
+      tx.feePayer = publicKey;
+      
+      // Get the recent blockhash for transaction freshness
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      tx.recentBlockhash = blockhash;
+      
+      console.log("Transaction built, sending with params:", {
+        accounts: {
+          user: publicKey.toString(),
+          userInfo: userInfoPDA.toString(),
+          vault: vaultPDA.toString(),
+        }
+      });
+      
+      // Send transaction with retries
+      let retries = 3;
+      let signature = null;
+      
+      while (retries > 0 && !signature) {
+        try {
+          signature = await sendTransaction(tx, connection);
+          console.log("Transaction sent with signature:", signature);
+          break; // Exit the loop if successful
+        } catch (err) {
+          console.error("Send transaction attempt failed:", err);
+          retries--;
+          if (retries === 0) throw err;
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+        }
+      }
       
       // Wait for confirmation
       console.log("Waiting for confirmation...");
-      const confirmation = await connection.confirmTransaction(signature, "confirmed");
-      console.log("Transaction confirmed:", confirmation);
+      if (signature) {
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash: tx.recentBlockhash!, // Non-null assertion for TypeScript
+          lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+        });
+        console.log("Transaction confirmed:", confirmation);
+      }
       
       toast({
         title: "Registration successful",
@@ -300,11 +334,22 @@ export function useStaking() {
         })
         .transaction();
       
+      // Get fresh blockhash
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+      
       // Send transaction
       const signature = await sendTransaction(tx, connection);
       
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, "confirmed");
+      // Wait for confirmation with proper format
+      if (signature) {
+        await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        });
+      }
       
       toast({
         title: "Staking successful",
@@ -362,11 +407,22 @@ export function useStaking() {
         })
         .transaction();
       
+      // Get fresh blockhash
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+      
       // Send transaction
       const signature = await sendTransaction(tx, connection);
       
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, "confirmed");
+      // Wait for confirmation with proper format
+      if (signature) {
+        await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        });
+      }
       
       toast({
         title: "Unstaking successful",

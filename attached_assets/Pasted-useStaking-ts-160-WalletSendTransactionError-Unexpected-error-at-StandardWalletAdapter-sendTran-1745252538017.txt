@@ -1,0 +1,150 @@
+useStaking.ts:160 WalletSendTransactionError: Unexpected error
+    at StandardWalletAdapter.sendTransaction (chunk-MMQSOHDF.js?v=ac5f3fed:4290:15)
+    at async chunk-MMQSOHDF.js?v=ac5f3fed:4901:12
+    at async registerUser (useStaking.ts:160:25)
+    at async handleRegister (SolanaStakingWidget.tsx:44:7) StandardWalletAdapter {_events: Events, _eventsCount: 4, signIn: ƒ, signTransaction: ƒ, signAllTransactions: ƒ, …}
+overrideMethod @ hook.js:608
+(anonymous) @ chunk-MMQSOHDF.js?v=ac5f3fed:4800
+handleError @ chunk-MMQSOHDF.js?v=ac5f3fed:4861
+emit @ chunk-OYXDWZGH.js?v=ac5f3fed:76
+sendTransaction @ chunk-MMQSOHDF.js?v=ac5f3fed:4293
+await in sendTransaction
+(anonymous) @ chunk-MMQSOHDF.js?v=ac5f3fed:4901
+registerUser @ useStaking.ts:160
+await in registerUser
+handleRegister @ SolanaStakingWidget.tsx:44
+callCallback2 @ chunk-276SZO74.js?v=ac5f3fed:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=ac5f3fed:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=ac5f3fed:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=ac5f3fed:3736
+executeDispatch @ chunk-276SZO74.js?v=ac5f3fed:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=ac5f3fed:7034
+processDispatchQueue @ chunk-276SZO74.js?v=ac5f3fed:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=ac5f3fed:7051
+(anonymous) @ chunk-276SZO74.js?v=ac5f3fed:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=ac5f3fed:18913
+batchedUpdates @ chunk-276SZO74.js?v=ac5f3fed:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=ac5f3fed:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=ac5f3fed:5478
+dispatchEvent @ chunk-276SZO74.js?v=ac5f3fed:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=ac5f3fed:5449Understand this error
+useStaking.ts:176 Registration error: WalletSendTransactionError: Unexpected error
+    at StandardWalletAdapter.sendTransaction (chunk-MMQSOHDF.js?v=ac5f3fed:4290:15)
+    at async chunk-MMQSOHDF.js?v=ac5f3fed:4901:12
+    at async registerUser (useStaking.ts:160:25)
+    at async handleRegister (SolanaStakingWidget.tsx:44:7)
+overrideMethod @ hook.js:608
+registerUser @ useStaking.ts:176
+await in registerUser
+handleRegister @ SolanaStakingWidget.tsx:44
+callCallback2 @ chunk-276SZO74.js?v=ac5f3fed:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=ac5f3fed:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=ac5f3fed:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=ac5f3fed:3736
+executeDispatch @ chunk-276SZO74.js?v=ac5f3fed:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=ac5f3fed:7034
+processDispatchQueue @ chunk-276SZO74.js?v=ac5f3fed:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=ac5f3fed:7051
+(anonymous) @ chunk-276SZO74.js?v=ac5f3fed:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=ac5f3fed:18913
+batchedUpdates @ chunk-276SZO74.js?v=ac5f3fed:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=ac5f3fed:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=ac5f3fed:5478
+dispatchEvent @ chunk-276SZO74.js?v=ac5f3fed:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=ac5f3fed:5449Understand this error
+useStaking.ts:180 Error name: WalletSendTransactionError
+overrideMethod @ hook.js:608
+registerUser @ useStaking.ts:180
+await in registerUser
+handleRegister @ SolanaStakingWidget.tsx:44
+callCallback2 @ chunk-276SZO74.js?v=ac5f3fed:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=ac5f3fed:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=ac5f3fed:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=ac5f3fed:3736
+executeDispatch @ chunk-276SZO74.js?v=ac5f3fed:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=ac5f3fed:7034
+processDispatchQueue @ chunk-276SZO74.js?v=ac5f3fed:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=ac5f3fed:7051
+(anonymous) @ chunk-276SZO74.js?v=ac5f3fed:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=ac5f3fed:18913
+batchedUpdates @ chunk-276SZO74.js?v=ac5f3fed:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=ac5f3fed:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=ac5f3fed:5478
+dispatchEvent @ chunk-276SZO74.js?v=ac5f3fed:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=ac5f3fed:5449Understand this error
+useStaking.ts:181 Error message: Unexpected error
+overrideMethod @ hook.js:608
+registerUser @ useStaking.ts:181
+await in registerUser
+handleRegister @ SolanaStakingWidget.tsx:44
+callCallback2 @ chunk-276SZO74.js?v=ac5f3fed:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=ac5f3fed:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=ac5f3fed:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=ac5f3fed:3736
+executeDispatch @ chunk-276SZO74.js?v=ac5f3fed:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=ac5f3fed:7034
+processDispatchQueue @ chunk-276SZO74.js?v=ac5f3fed:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=ac5f3fed:7051
+(anonymous) @ chunk-276SZO74.js?v=ac5f3fed:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=ac5f3fed:18913
+batchedUpdates @ chunk-276SZO74.js?v=ac5f3fed:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=ac5f3fed:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=ac5f3fed:5478
+dispatchEvent @ chunk-276SZO74.js?v=ac5f3fed:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=ac5f3fed:5449Understand this error
+useStaking.ts:182 Error stack: WalletSendTransactionError: Unexpected error
+    at StandardWalletAdapter.sendTransaction (https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MMQSOHDF.js?v=ac5f3fed:4290:15)
+    at async https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MMQSOHDF.js?v=ac5f3fed:4901:12
+    at async registerUser (https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/src/hooks/useStaking.ts?t=1745252463774:120:25)
+    at async handleRegister (https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/src/components/SolanaStakingWidget.tsx?t=1745252463774:52:7)
+overrideMethod @ hook.js:608
+registerUser @ useStaking.ts:182
+await in registerUser
+handleRegister @ SolanaStakingWidget.tsx:44
+callCallback2 @ chunk-276SZO74.js?v=ac5f3fed:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=ac5f3fed:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=ac5f3fed:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=ac5f3fed:3736
+executeDispatch @ chunk-276SZO74.js?v=ac5f3fed:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=ac5f3fed:7034
+processDispatchQueue @ chunk-276SZO74.js?v=ac5f3fed:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=ac5f3fed:7051
+(anonymous) @ chunk-276SZO74.js?v=ac5f3fed:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=ac5f3fed:18913
+batchedUpdates @ chunk-276SZO74.js?v=ac5f3fed:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=ac5f3fed:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=ac5f3fed:5478
+dispatchEvent @ chunk-276SZO74.js?v=ac5f3fed:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=ac5f3fed:5449Understand this error
+useStaking.ts:186 Anchor error info: Ve: Unexpected error
+    at #o (chrome-extension://bfnaelmomeimhlpmgjnjophhpkkoljpa/solana.js:3:411024)
+    at async r.signAndSendTransaction (chrome-extension://bfnaelmomeimhlpmgjnjophhpkkoljpa/solana.js:3:413190)
+    at async #g [as signAndSendTransaction] (chrome-extension://bfnaelmomeimhlpmgjnjophhpkkoljpa/solana.js:3:417955)
+    at async StandardWalletAdapter.sendTransaction (https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MMQSOHDF.js?v=ac5f3fed:4260:28)
+    at async https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MMQSOHDF.js?v=ac5f3fed:4901:12
+    at async registerUser (https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/src/hooks/useStaking.ts?t=1745252463774:120:25)
+    at async handleRegister (https://295edfe0-8a4a-4c44-bc38-eca1e40401a2-00-qelwg7sg5ccy.janeway.replit.dev/src/components/SolanaStakingWidget.tsx?t=1745252463774:52:7)
+overrideMethod @ hook.js:608
+registerUser @ useStaking.ts:186
+await in registerUser
+handleRegister @ SolanaStakingWidget.tsx:44
+callCallback2 @ chunk-276SZO74.js?v=ac5f3fed:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=ac5f3fed:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=ac5f3fed:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=ac5f3fed:3736
+executeDispatch @ chunk-276SZO74.js?v=ac5f3fed:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=ac5f3fed:7034
+processDispatchQueue @ chunk-276SZO74.js?v=ac5f3fed:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=ac5f3fed:7051
+(anonymous) @ chunk-276SZO74.js?v=ac5f3fed:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=ac5f3fed:18913
+batchedUpdates @ chunk-276SZO74.js?v=ac5f3fed:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=ac5f3fed:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=ac5f3fed:5478
+dispatchEvent @ chunk-276SZO74.js?v=ac5f3fed:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=ac5f3fed:5449Understand this error
+SolanaStakingWidget.tsx:47 Registration error: WalletSendTransactionError: Unexpected error
+    at StandardWalletAdapter.sendTransaction (chunk-MMQSOHDF.js?v=ac5f3fed:4290:15)
+    at async chunk-MMQSOHDF.js?v=ac5f3fed:4901:12
+    at async registerUser (useStaking.ts:160:25)
+    at async handleRegister (SolanaStakingWidget.tsx:44:7)
