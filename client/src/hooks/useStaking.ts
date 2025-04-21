@@ -68,6 +68,14 @@ export function useStaking() {
     return userInfoPDA;
   }, [publicKey]);
   
+  const findGlobalStateAccount = useCallback(() => {
+    const [globalStatePDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from('global')],
+      new PublicKey(PROGRAM_ID)
+    );
+    return globalStatePDA;
+  }, []);
+  
   const findVaultAccount = useCallback(() => {
     const [vaultPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('vault')],
@@ -76,16 +84,11 @@ export function useStaking() {
     return vaultPDA;
   }, []);
   
-  const findVaultTokenAccount = useCallback(async () => {
+  const findVaultTokenAccount = useCallback(() => {
     const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
-    
-    // This varies by program - adjust seeds based on actual implementation
-    const [tokenVaultPDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from('vault_token')],
-      new PublicKey(PROGRAM_ID)
-    );
-    return tokenVaultPDA;
-  }, []);
+    // In this program, the vault is also the token account
+    return findVaultAccount();
+  }, [findVaultAccount]);
 
   // Get Anchor program
   const getProgram = useCallback(() => {
@@ -170,9 +173,9 @@ export function useStaking() {
       if (!program) return;
       
       const userInfoAccount = findUserInfoAccount();
-      const vault = findVaultAccount();
+      const globalState = findGlobalStateAccount();
       
-      if (!userInfoAccount || !vault) {
+      if (!userInfoAccount || !globalState) {
         throw new Error('Failed to derive program accounts');
       }
       
@@ -180,18 +183,19 @@ export function useStaking() {
       try {
         await program.account.userInfo.fetch(userInfoAccount);
         // If it exists, return
+        console.log('User already registered');
         return;
       } catch (error) {
         // If it doesn't exist, we need to create it
         console.log('User account does not exist, creating...');
         
-        // Register user
+        // Register user with no referrer (null)
         const tx = await program.methods
-          .registerUser()
+          .registerUser(null)
           .accounts({
-            user: new PublicKey(publicKey),
+            owner: new PublicKey(publicKey),
             userInfo: userInfoAccount,
-            vault,
+            globalState,
             systemProgram: anchor.web3.SystemProgram.programId,
             rent: anchor.web3.SYSVAR_RENT_PUBKEY
           })
@@ -203,7 +207,7 @@ export function useStaking() {
       console.error('Error registering user:', error);
       throw error;
     }
-  }, [publicKey, getProgram, findUserInfoAccount, findVaultAccount]);
+  }, [publicKey, getProgram, findUserInfoAccount, findGlobalStateAccount]);
 
   // Stake tokens
   const stake = useCallback(async (amount: number) => {
@@ -233,10 +237,10 @@ export function useStaking() {
       if (!program) throw new Error('Failed to get program');
       
       const userInfoAccount = findUserInfoAccount();
+      const globalState = findGlobalStateAccount();
       const vault = findVaultAccount();
-      const vaultTokenAccount = await findVaultTokenAccount();
       
-      if (!userInfoAccount || !vault || !vaultTokenAccount) {
+      if (!userInfoAccount || !globalState || !vault) {
         throw new Error('Failed to derive program accounts');
       }
       
@@ -257,16 +261,16 @@ export function useStaking() {
         signature: null
       });
       
+      // This matches the IDL structure exactly
       const tx = await program.methods
         .stake(bnAmount)
         .accounts({
-          user: new PublicKey(publicKey),
+          owner: new PublicKey(publicKey),
+          globalState,
           userInfo: userInfoAccount,
           vault,
           userTokenAccount,
-          vaultTokenAccount,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
         })
         .rpc();
         
@@ -324,8 +328,8 @@ export function useStaking() {
     connected, 
     getProgram, 
     findUserInfoAccount, 
+    findGlobalStateAccount,
     findVaultAccount, 
-    findVaultTokenAccount, 
     ensureUserRegistered, 
     refreshBalances, 
     setTransactionStatus, 
@@ -357,18 +361,12 @@ export function useStaking() {
       if (!program) throw new Error('Failed to get program');
       
       const userInfoAccount = findUserInfoAccount();
+      const globalState = findGlobalStateAccount();
       const vault = findVaultAccount();
-      const vaultTokenAccount = await findVaultTokenAccount();
       
-      if (!userInfoAccount || !vault || !vaultTokenAccount) {
+      if (!userInfoAccount || !globalState || !vault) {
         throw new Error('Failed to derive program accounts');
       }
-      
-      // Find the vault authority
-      const [vaultAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from('authority')],
-        new PublicKey(PROGRAM_ID)
-      );
       
       // Get the user's token account
       const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
@@ -387,17 +385,16 @@ export function useStaking() {
         signature: null
       });
       
+      // This matches the IDL structure exactly
       const tx = await program.methods
         .unstake(bnAmount)
         .accounts({
-          user: new PublicKey(publicKey),
+          owner: new PublicKey(publicKey),
+          globalState,
           userInfo: userInfoAccount,
           vault,
-          vaultAuthority,
-          vaultTokenAccount,
           userTokenAccount,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
         })
         .rpc();
         
@@ -454,9 +451,9 @@ export function useStaking() {
     publicKey, 
     connected, 
     getProgram, 
-    findUserInfoAccount, 
-    findVaultAccount, 
-    findVaultTokenAccount, 
+    findUserInfoAccount,
+    findGlobalStateAccount,
+    findVaultAccount,
     refreshBalances, 
     setTransactionStatus, 
     toast
