@@ -134,16 +134,26 @@ export const findUserStakeInfoAccount = (walletPublicKey: PublicKey) => {
   return userInfoPDA;
 };
 
-// Find the token vault account - this is the program's token account
+// Find the token vault account - this is the program's token account for storing staked tokens
 export const findTokenVaultAccount = async () => {
-  const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
-  
-  // The vault token account is derived from the program ID and token mint
-  const [tokenVaultPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('vault_token_account'), tokenMint.toBuffer()],
-    new PublicKey(PROGRAM_ID)
-  );
-  return tokenVaultPDA;
+  try {
+    // First, get the GlobalState PDA (this is the "vault" in our code)
+    const globalStatePDA = await findStakingVault();
+    const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
+    
+    // In the referral_staking contract, the token vault is an Associated Token Account for the GlobalState
+    // We're going to use the Associated Token Account for the global state PDA
+    const tokenVaultPDA = await anchor.utils.token.associatedAddress({
+      mint: tokenMint,
+      owner: globalStatePDA
+    });
+    
+    console.log("Generated token vault PDA:", tokenVaultPDA.toString());
+    return tokenVaultPDA;
+  } catch (error) {
+    console.error("Error finding token vault account:", error);
+    throw error;
+  }
 };
 
 // Create an Anchor provider from a wallet
