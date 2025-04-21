@@ -510,6 +510,17 @@ export function useStaking() {
     try {
       setIsProcessing(true);
       
+      // IMPORTANT: First, check if the user has enough staked tokens
+      // This prevents the "InsufficientStake" error (0x1770)
+      if (amount > stakedAmount) {
+        toast({
+          title: "Insufficient staked balance",
+          description: `You only have ${stakedAmount} HATM tokens staked. Cannot unstake ${amount} tokens.`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
       // Get necessary PDAs
       const [vaultPDA] = await findVaultPDA();
       const [vaultAuthorityPDA] = await findVaultAuthorityPDA();
@@ -579,7 +590,16 @@ export function useStaking() {
             description: "Please check your wallet connection and try again. Make sure to approve the transaction in your wallet extension.",
             variant: "destructive"
           });
-        } else {
+        } 
+        // Handle InsufficientStake error specifically (Custom program error: 0x1770)
+        else if (txErr?.message?.includes('0x1770') || txErr?.message?.includes('InsufficientStake')) {
+          toast({
+            title: "Insufficient Staked Balance",
+            description: "You don't have enough tokens staked to unstake this amount. Please refresh your balance and try again with a smaller amount.",
+            variant: "destructive"
+          });
+        }
+        else {
           toast({
             title: "Unstaking failed",
             description: txErr?.message || "There was an error unstaking your tokens",
@@ -592,11 +612,20 @@ export function useStaking() {
     } catch (error: any) {
       console.error("Unstake error:", error);
       if (!error?.name?.includes('WalletSendTransactionError')) {
-        toast({
-          title: "Unstaking failed",
-          description: error?.message || "There was an error unstaking your tokens",
-          variant: "destructive"
-        });
+        // Handle InsufficientStake error specifically (Custom program error: 0x1770)
+        if (error?.message?.includes('0x1770') || error?.message?.includes('InsufficientStake')) {
+          toast({
+            title: "Insufficient Staked Balance",
+            description: "You don't have enough tokens staked to unstake this amount. Please refresh your balance and try again with a smaller amount.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Unstaking failed",
+            description: error?.message || "There was an error unstaking your tokens",
+            variant: "destructive"
+          });
+        }
       }
       throw error;
     } finally {
@@ -652,6 +681,7 @@ export function useStaking() {
     refreshBalances,
     registerUser,
     stake,
-    unstake
+    unstake,
+    checkUserRegistration
   };
 }

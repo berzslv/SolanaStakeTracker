@@ -31,7 +31,8 @@ const SolanaStakingWidget: React.FC = () => {
     refreshBalances,
     registerUser,
     stake,
-    unstake
+    unstake,
+    checkUserRegistration
   } = useStaking();
   
   const [stakeAmount, setStakeAmount] = useState<string>('');
@@ -132,19 +133,15 @@ const SolanaStakingWidget: React.FC = () => {
     setUnstakeAmount(formattedAmount);
   };
   
-  // Only refresh balances when wallet connects, no automatic refresh
+  // ONLY refresh balances when the refresh button is clicked
+  // No automatic refreshes at all, not even on connect
   useEffect(() => {
     if (publicKey) {
-      // Initial refresh with a small delay to prevent connection race conditions
-      const timer = setTimeout(() => {
-        refreshBalances();
-      }, 1000);
-      
-      return () => {
-        clearTimeout(timer);
-      };
+      // Check if user is registered on initial connect - this is a separate API call
+      // and doesn't refresh balances. No automatic balance refreshes.
+      checkUserRegistration && checkUserRegistration();
     }
-  }, [publicKey, refreshBalances]);
+  }, [publicKey, checkUserRegistration]);
   
   return (
     <div className="w-full mx-auto">
