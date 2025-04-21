@@ -6,8 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import { TransactionProvider } from "./contexts/TransactionContext";
-import { WalletProvider } from "./components/WalletProvider";
-import WalletModal from "./components/WalletModal";
+import SolanaWalletProvider from "./components/SolanaWalletProvider";
 
 function Router() {
   return (
@@ -22,15 +21,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WalletProvider>
+      <SolanaWalletProvider>
         <TransactionProvider>
           <TooltipProvider>
             <Toaster />
             <Router />
-            <WalletModal />
           </TooltipProvider>
         </TransactionProvider>
-      </WalletProvider>
+      </SolanaWalletProvider>
     </QueryClientProvider>
   );
 }
