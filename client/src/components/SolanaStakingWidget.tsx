@@ -132,17 +132,17 @@ const SolanaStakingWidget: React.FC = () => {
     setUnstakeAmount(formattedAmount);
   };
   
-  // Auto-refresh balances when component loads and periodically
+  // Only refresh balances when wallet connects, no automatic refresh
   useEffect(() => {
     if (publicKey) {
-      refreshBalances();
-      
-      // Set up interval for periodic refresh
-      const interval = setInterval(() => {
+      // Initial refresh with a small delay to prevent connection race conditions
+      const timer = setTimeout(() => {
         refreshBalances();
-      }, 30000); // Refresh every 30 seconds
+      }, 1000);
       
-      return () => clearInterval(interval);
+      return () => {
+        clearTimeout(timer);
+      };
     }
   }, [publicKey, refreshBalances]);
   

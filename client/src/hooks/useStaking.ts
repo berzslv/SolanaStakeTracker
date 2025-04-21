@@ -240,11 +240,18 @@ export function useStaking() {
     }
   };
 
-  // Fetch token balance and staked amount
+  // Tracking for refresh operations to prevent concurrent calls
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  
+  // Fetch token balance and staked amount with debounce
   const refreshBalances = async () => {
-    if (!publicKey) return;
+    if (!publicKey || isRefreshing) return;
     
+    setIsRefreshing(true);
     setIsLoading(true);
+    
+    const delayBetweenRequests = 300; // ms between RPC calls
+    
     try {
       // Get token balance from the associated token account
       console.log("Looking for token with mint:", TOKEN_MINT_ADDRESS.toString());
@@ -252,7 +259,19 @@ export function useStaking() {
       console.log("User ATA:", userATA.toString());
       
       try {
-        const tokenAccount = await connection.getTokenAccountBalance(userATA);
+        // Wait before making RPC call to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, delayBetweenRequests));
+        
+        const tokenAccount = await connection.getTokenAccountBalance(userATA)
+          .catch(async (err: any) => {
+            if (err?.message && typeof err.message === 'string' && err.message.includes('429')) {
+              console.log("Server responded with 429. Retrying after 500ms delay...");
+              await new Promise(resolve => setTimeout(resolve, 500));
+              return await connection.getTokenAccountBalance(userATA);
+            }
+            throw err;
+          });
+        
         console.log("Token account info:", tokenAccount);
         setTokenBalance(parseFloat(tokenAccount.value.uiAmount?.toString() || "0"));
       } catch (error) {
@@ -271,8 +290,24 @@ export function useStaking() {
           const [userInfoPDA] = await findUserInfoPDA(publicKey);
           
           try {
-            // Get UserStakeInfo account
-            const userStakeInfo = await program.account.userStakeInfo.fetch(userInfoPDA);
+            // Wait before making another RPC call
+            await new Promise(resolve => setTimeout(resolve, delayBetweenRequests));
+            
+            // Get UserStakeInfo account with retry logic
+            const fetchUserStakeInfo = async (retry = true) => {
+              try {
+                return await program.account.userStakeInfo.fetch(userInfoPDA);
+              } catch (err: any) {
+                if (retry && err?.message && typeof err.message === 'string' && err.message.includes('429')) {
+                  console.log("Server responded with 429 on userStakeInfo fetch. Retrying after 500ms...");
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                  return fetchUserStakeInfo(false);
+                }
+                throw err;
+              }
+            };
+            
+            const userStakeInfo = await fetchUserStakeInfo();
             
             // @ts-ignore - Handle potential type issues with Anchor
             setStakedAmount(fromBN(userStakeInfo.amountStaked));
@@ -291,6 +326,7 @@ export function useStaking() {
       console.error("Error refreshing balances:", error);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
