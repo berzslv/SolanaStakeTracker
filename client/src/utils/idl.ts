@@ -4,7 +4,7 @@ import type { SimpleStaking } from "./staking-types";
 // IDL for the staking program
 export const IDL: SimpleStaking = {
   "version": "0.1.0",
-  "name": "referral_staking",
+  "name": "simple_staking",
   "instructions": [
     {
       "name": "initialize",
@@ -15,8 +15,13 @@ export const IDL: SimpleStaking = {
           "isSigner": true
         },
         {
-          "name": "globalState",
+          "name": "vault",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "vaultAuthority",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -25,17 +30,12 @@ export const IDL: SimpleStaking = {
           "isSigner": false
         },
         {
-          "name": "vault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
+          "name": "tokenVault",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "tokenProgram",
+          "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -45,34 +45,13 @@ export const IDL: SimpleStaking = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "rewardRate",
-          "type": "u64"
-        },
-        {
-          "name": "unlockDuration",
-          "type": "i64"
-        },
-        {
-          "name": "earlyUnstakePenalty",
-          "type": "u64"
-        },
-        {
-          "name": "minStakeAmount",
-          "type": "u64"
-        },
-        {
-          "name": "referralRewardRate",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "registerUser",
       "accounts": [
         {
-          "name": "owner",
+          "name": "user",
           "isMut": true,
           "isSigner": true
         },
@@ -82,7 +61,7 @@ export const IDL: SimpleStaking = {
           "isSigner": false
         },
         {
-          "name": "globalState",
+          "name": "vault",
           "isMut": false,
           "isSigner": false
         },
@@ -97,27 +76,15 @@ export const IDL: SimpleStaking = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "referrer",
-          "type": {
-            "option": "publicKey"
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "stake",
       "accounts": [
         {
-          "name": "owner",
+          "name": "user",
           "isMut": true,
           "isSigner": true
-        },
-        {
-          "name": "globalState",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "userInfo",
@@ -126,7 +93,7 @@ export const IDL: SimpleStaking = {
         },
         {
           "name": "vault",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -135,7 +102,17 @@ export const IDL: SimpleStaking = {
           "isSigner": false
         },
         {
+          "name": "vaultTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -151,14 +128,9 @@ export const IDL: SimpleStaking = {
       "name": "unstake",
       "accounts": [
         {
-          "name": "owner",
+          "name": "user",
           "isMut": true,
           "isSigner": true
-        },
-        {
-          "name": "globalState",
-          "isMut": true,
-          "isSigner": false
         },
         {
           "name": "userInfo",
@@ -167,6 +139,16 @@ export const IDL: SimpleStaking = {
         },
         {
           "name": "vault",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "vaultAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "vaultTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -177,6 +159,11 @@ export const IDL: SimpleStaking = {
         },
         {
           "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -187,68 +174,11 @@ export const IDL: SimpleStaking = {
           "type": "u64"
         }
       ]
-    },
-    {
-      "name": "claimRewards",
-      "accounts": [
-        {
-          "name": "owner",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "globalState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userInfo",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "vault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "compoundRewards",
-      "accounts": [
-        {
-          "name": "owner",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "globalState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userInfo",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
     {
-      "name": "globalState",
+      "name": "StakingVault",
       "type": {
         "kind": "struct",
         "fields": [
@@ -261,54 +191,22 @@ export const IDL: SimpleStaking = {
             "type": "publicKey"
           },
           {
-            "name": "vault",
+            "name": "tokenVault",
             "type": "publicKey"
           },
           {
-            "name": "rewardRate",
-            "type": "u64"
-          },
-          {
-            "name": "unlockDuration",
-            "type": "i64"
-          },
-          {
-            "name": "earlyUnstakePenalty",
-            "type": "u64"
-          },
-          {
-            "name": "minStakeAmount",
-            "type": "u64"
-          },
-          {
-            "name": "referralRewardRate",
-            "type": "u64"
-          },
-          {
-            "name": "totalStaked",
-            "type": "u64"
-          },
-          {
-            "name": "stakersCount",
-            "type": "u64"
-          },
-          {
-            "name": "rewardPool",
-            "type": "u64"
-          },
-          {
-            "name": "lastUpdateTime",
-            "type": "i64"
-          },
-          {
             "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vaultBump",
             "type": "u8"
           }
         ]
       }
     },
     {
-      "name": "userInfo",
+      "name": "UserStakeInfo",
       "type": {
         "kind": "struct",
         "fields": [
@@ -317,34 +215,24 @@ export const IDL: SimpleStaking = {
             "type": "publicKey"
           },
           {
-            "name": "stakedAmount",
+            "name": "amountStaked",
             "type": "u64"
           },
           {
-            "name": "rewards",
+            "name": "rewardsEarned",
             "type": "u64"
           },
           {
-            "name": "lastStakeTime",
+            "name": "lastStakeTimestamp",
             "type": "i64"
           },
           {
-            "name": "lastClaimTime",
+            "name": "lastClaimTimestamp",
             "type": "i64"
           },
           {
-            "name": "referrer",
-            "type": {
-              "option": "publicKey"
-            }
-          },
-          {
-            "name": "referralCount",
-            "type": "u64"
-          },
-          {
-            "name": "totalReferralRewards",
-            "type": "u64"
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
@@ -353,23 +241,8 @@ export const IDL: SimpleStaking = {
   "errors": [
     {
       "code": 6000,
-      "name": "InsufficientStakedAmount",
-      "msg": "Not enough tokens staked for this operation"
-    },
-    {
-      "code": 6001,
-      "name": "AmountTooSmall",
-      "msg": "Amount is smaller than the minimum stake amount"
-    },
-    {
-      "code": 6002,
-      "name": "NoRewardsToClaim",
-      "msg": "No rewards to claim"
-    },
-    {
-      "code": 6003,
-      "name": "InsufficientRewardPool",
-      "msg": "Insufficient tokens in the reward pool"
+      "name": "InsufficientStake",
+      "msg": "Insufficient staked tokens"
     }
   ]
 };

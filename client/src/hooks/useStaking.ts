@@ -77,11 +77,14 @@ export function useStaking() {
   const getProvider = () => {
     if (!publicKey || !signTransaction) return null;
     
-    // @ts-ignore - Wallet adapter types don't exactly match Anchor's expected types
+    // Create a wallet compatible with Anchor
     const wallet = {
       publicKey,
       signTransaction,
-      signAllTransactions: undefined
+      // Implement signAllTransactions by mapping signTransaction over all txs
+      signAllTransactions: async (txs: Transaction[]) => {
+        return Promise.all(txs.map(tx => signTransaction(tx)));
+      }
     };
     
     return new anchor.AnchorProvider(
