@@ -22,15 +22,18 @@ import {
   findUserStakeInfoAccount
 } from "@/utils/anchor";
 
+// Import DECIMALS from constants
+import { PROGRAM_ID, TOKEN_MINT_ADDRESS, VERIFIED_VAULT_ADDRESS, DECIMALS } from "@/utils/constants";
+
 // Convert number to BN with proper decimal handling
 const toBN = (amount: number): typeof anchor.BN => {
-  // Assuming 6 decimals for the token
-  return new anchor.BN(amount * 10 ** 6);
+  // Using DECIMALS from constants (9 for HATM token)
+  return new anchor.BN(amount * 10 ** DECIMALS);
 };
 
 // Convert BN to number with proper decimal handling
 const fromBN = (amount: typeof anchor.BN): number => {
-  return amount.toNumber() / 10 ** 6;
+  return amount.toNumber() / 10 ** DECIMALS;
 };
 
 export function useStaking() {
@@ -559,8 +562,11 @@ export function useStaking() {
         vault: vaultTokenAccount.toString()
       });
       
+      // Import needed for createApproveInstruction
+      const { createApproveInstruction } = await import('@solana/spl-token');
+      
       // Create stake instruction
-      const tx = await program.methods
+      const stakeIx = await program.methods
         .stake(toBN(amount))
         .accounts({
           owner: publicKey, // Changed from user to owner
@@ -571,7 +577,19 @@ export function useStaking() {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
-        .transaction();
+        .instruction();
+        
+      // Create token approval instruction - this is critical
+      // This approves the program to transfer tokens from your account
+      const approveIx = createApproveInstruction(
+        userTokenAccount,   // source
+        vaultTokenAccount,  // delegate
+        publicKey,          // owner
+        toBN(amount).toNumber()    // amount
+      );
+      
+      // Create transaction with both instructions
+      const tx = new Transaction().add(approveIx, stakeIx);
       
       // Get fresh blockhash
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
@@ -754,8 +772,11 @@ export function useStaking() {
         userTokenAccount: userTokenAccount.toString()
       });
       
+      // Import needed for createApproveInstruction
+      const { createApproveInstruction } = await import('@solana/spl-token');
+      
       // Create unstake instruction
-      const tx = await program.methods
+      const unstakeIx = await program.methods
         .unstake(toBN(amount))
         .accounts({
           owner: publicKey, // Changed from user to owner
@@ -766,7 +787,11 @@ export function useStaking() {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
-        .transaction();
+        .instruction();
+        
+      // For unstaking, we don't need an approval since tokens are coming back to us
+      // But we create a transaction with our unstake instruction
+      const tx = new Transaction().add(unstakeIx);
       
       // Get fresh blockhash
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
