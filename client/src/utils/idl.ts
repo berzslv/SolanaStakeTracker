@@ -1,8 +1,8 @@
 // Import type
-import type { ReferralStaking } from "./staking-types";
+import type { SimpleStaking } from "./staking-types";
 
 // IDL for the staking program
-export const IDL: ReferralStaking = {
+export const IDL: SimpleStaking = {
   "version": "0.1.0",
   "name": "referral_staking",
   "instructions": [

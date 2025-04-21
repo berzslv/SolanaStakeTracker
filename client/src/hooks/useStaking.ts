@@ -42,25 +42,34 @@ export function useStaking() {
   const PROGRAM_ID_PUBKEY = new PublicKey(PROGRAM_ID);
 
   // Get PDAs for the staking program
-  const findGlobalStatePDA = async (): Promise<[PublicKey, number]> => {
+  const findVaultPDA = async (): Promise<[PublicKey, number]> => {
     return await PublicKey.findProgramAddress(
-      [Buffer.from("global_state")],
+      [Buffer.from("vault")],
+      PROGRAM_ID_PUBKEY
+    );
+  };
+
+  const findVaultAuthorityPDA = async (): Promise<[PublicKey, number]> => {
+    const [vault] = await findVaultPDA();
+    return await PublicKey.findProgramAddress(
+      [vault.toBuffer()],
       PROGRAM_ID_PUBKEY
     );
   };
 
   const findUserInfoPDA = async (owner: PublicKey): Promise<[PublicKey, number]> => {
     return await PublicKey.findProgramAddress(
-      [Buffer.from("user_info"), owner.toBuffer()],
+      [Buffer.from("user"), owner.toBuffer()],
       PROGRAM_ID_PUBKEY
     );
   };
 
-  const findVaultPDA = async (): Promise<[PublicKey, number]> => {
-    const [globalState] = await findGlobalStatePDA();
-    return await PublicKey.findProgramAddress(
-      [Buffer.from("vault"), globalState.toBuffer()],
-      PROGRAM_ID_PUBKEY
+  const findTokenVaultPDA = async (): Promise<PublicKey> => {
+    const [vaultAuthority] = await findVaultAuthorityPDA();
+    return await getAssociatedTokenAddress(
+      TOKEN_MINT,
+      vaultAuthority,
+      true // allowOwnerOffCurve - PDA can own token account
     );
   };
 
@@ -105,7 +114,7 @@ export function useStaking() {
   };
 
   // Register user with the staking program
-  const registerUser = async (referrer: PublicKey | null = null) => {
+  const registerUser = async () => {
     if (!publicKey) return;
     
     const program = getProgram();
@@ -114,16 +123,16 @@ export function useStaking() {
     try {
       setIsProcessing(true);
       
-      const [globalStatePDA] = await findGlobalStatePDA();
+      const [vaultPDA] = await findVaultPDA();
       const [userInfoPDA] = await findUserInfoPDA(publicKey);
       
       // Create instruction to register user
       const tx = await program.methods
-        .registerUser(referrer ? new anchor.web3.PublicKey(referrer) : null)
+        .registerUser() // No arguments according to IDL
         .accounts({
-          owner: publicKey,
+          user: publicKey,
           userInfo: userInfoPDA,
-          globalState: globalStatePDA,
+          vault: vaultPDA,
           systemProgram: SystemProgram.programId,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY
         })
@@ -183,10 +192,17 @@ export function useStaking() {
           if (!program) return;
           
           const [userInfoPDA] = await findUserInfoPDA(publicKey);
-          const userInfo = await program.account.userInfo.fetch(userInfoPDA);
           
-          // @ts-ignore - Handle potential type issues with Anchor
-          setStakedAmount(fromBN(userInfo.stakedAmount));
+          try {
+            // Get UserStakeInfo account
+            const userStakeInfo = await program.account.userStakeInfo.fetch(userInfoPDA);
+            
+            // @ts-ignore - Handle potential type issues with Anchor
+            setStakedAmount(fromBN(userStakeInfo.amountStaked));
+          } catch (error) {
+            console.error("Error fetching user stake info account:", error);
+            setStakedAmount(0);
+          }
         } catch (error) {
           console.error("Error fetching staked amount:", error);
           setStakedAmount(0);
@@ -220,9 +236,9 @@ export function useStaking() {
       }
       
       // Get necessary PDAs
-      const [globalStatePDA] = await findGlobalStatePDA();
-      const [userInfoPDA] = await findUserInfoPDA(publicKey);
       const [vaultPDA] = await findVaultPDA();
+      const [userInfoPDA] = await findUserInfoPDA(publicKey);
+      const tokenVaultAccount = await findTokenVaultPDA();
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT, publicKey);
@@ -231,12 +247,13 @@ export function useStaking() {
       const tx = await program.methods
         .stake(toBN(amount))
         .accounts({
-          owner: publicKey,
-          globalState: globalStatePDA,
+          user: publicKey,
           userInfo: userInfoPDA,
           vault: vaultPDA,
           userTokenAccount: userTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID
+          vaultTokenAccount: tokenVaultAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
         })
         .transaction();
       
@@ -279,9 +296,10 @@ export function useStaking() {
       setIsProcessing(true);
       
       // Get necessary PDAs
-      const [globalStatePDA] = await findGlobalStatePDA();
-      const [userInfoPDA] = await findUserInfoPDA(publicKey);
       const [vaultPDA] = await findVaultPDA();
+      const [vaultAuthorityPDA] = await findVaultAuthorityPDA();
+      const [userInfoPDA] = await findUserInfoPDA(publicKey);
+      const tokenVaultAccount = await findTokenVaultPDA();
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT, publicKey);
@@ -290,12 +308,14 @@ export function useStaking() {
       const tx = await program.methods
         .unstake(toBN(amount))
         .accounts({
-          owner: publicKey,
-          globalState: globalStatePDA,
+          user: publicKey,
           userInfo: userInfoPDA,
           vault: vaultPDA,
+          vaultAuthority: vaultAuthorityPDA,
+          vaultTokenAccount: tokenVaultAccount,
           userTokenAccount: userTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
         })
         .transaction();
       
