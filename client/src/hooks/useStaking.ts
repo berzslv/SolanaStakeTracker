@@ -510,9 +510,9 @@ export function useStaking() {
       const [globalStatePDA] = await findVaultPDA(); // This is the GlobalState PDA with "global_state" seed
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA with "user_info" seed
       
-      // Improved approach: We could fetch the actual vault from the GlobalState account
-      // For now, we'll use findTokenVaultAccount which currently has a hardcoded value
-      const vaultTokenAccount = await findTokenVaultAccount();
+      // Use the improved findTokenVaultAccount which now tries to fetch the vault from GlobalState
+      // If it can't fetch it, it falls back to our hardcoded value
+      const vaultTokenAccount = await findTokenVaultAccount(connection);
       
       console.log("Debug - Stake accounts:", {
         globalStatePDA: globalStatePDA.toString(),
@@ -644,8 +644,8 @@ export function useStaking() {
       const [globalStatePDA] = await findVaultPDA(); // This is the "global_state" PDA
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA
       
-      // Get the token vault account using findTokenVaultAccount
-      const vaultTokenAccount = await findTokenVaultAccount();
+      // Use the improved findTokenVaultAccount which now tries to fetch the vault from GlobalState
+      const vaultTokenAccount = await findTokenVaultAccount(connection);
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);

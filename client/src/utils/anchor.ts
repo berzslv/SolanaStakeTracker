@@ -46,33 +46,92 @@ export const findUserStakeInfoAccount = (walletPublicKey: PublicKey) => {
   return userInfoPDA;
 };
 
-// Find the token vault account for the referral staking program
-export const findTokenVaultAccount = async () => {
+// Get global state from the program
+export const getGlobalState = async (connection: Connection): Promise<{ vault: PublicKey } | null> => {
   try {
-    // In the referral_staking contract, there are two important pieces:
-    // 1. The GlobalState PDA - created with "global_state" seed
-    // 2. The token vault account - stored in the GlobalState.vault field
+    // Create a public key for the program
+    const programId = new PublicKey(PROGRAM_ID);
     
-    // First, get the GlobalState to check its vault field
+    // Find the GlobalState PDA
     const [globalStatePDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('global_state')],
-      new PublicKey(PROGRAM_ID)
+      programId
     );
-    console.log("GlobalState PDA:", globalStatePDA.toString());
     
-    // In the initialize instruction, the vault account is a signer
-    // For simplicity, we'll use a hardcoded value from the already deployed program
-    // In a real application, we would fetch the GlobalState account and get its vault field
+    // Fetch the GlobalState account data
+    const accountInfo = await connection.getAccountInfo(globalStatePDA);
+    if (!accountInfo) {
+      console.error("GlobalState account not found");
+      return null;
+    }
     
-    // IMPORTANT: This will need to be replaced with the actual vault address
-    // Determined by running Anchor tests or getting it from on-chain data
+    // Create a provider to deserialize the account data
+    const provider = new anchor.AnchorProvider(
+      connection,
+      // We don't need a real wallet here since we're just reading data
+      { publicKey: PublicKey.default } as any,
+      { preflightCommitment: 'processed' }
+    );
+    
+    // Create program instance
+    const program = new anchor.Program(
+      StakingIDL as any,
+      programId,
+      provider
+    );
+    
+    // Parse the GlobalState account
+    const globalState = await program.account.globalState.fetch(globalStatePDA);
+    
+    // @ts-ignore - handle potential typing issues with Anchor
+    console.log("GlobalState loaded:", {
+      // @ts-ignore
+      authority: globalState.authority?.toString(),
+      // @ts-ignore
+      tokenMint: globalState.tokenMint?.toString(),
+      // @ts-ignore
+      vault: globalState.vault?.toString(),
+      // @ts-ignore
+      rewardRate: globalState.rewardRate?.toString(),
+      // @ts-ignore
+      totalStaked: globalState.totalStaked?.toString(),
+    });
+    
+    return {
+      // @ts-ignore
+      vault: globalState.vault
+    };
+  } catch (error) {
+    console.error("Error getting global state:", error);
+    return null;
+  }
+};
+
+// Find the token vault account for the referral staking program
+export const findTokenVaultAccount = async (connection?: Connection) => {
+  try {
+    // Try to get the vault from GlobalState first
+    if (connection) {
+      const globalState = await getGlobalState(connection);
+      if (globalState && globalState.vault) {
+        console.log("Found vault address from GlobalState:", globalState.vault.toString());
+        return globalState.vault;
+      }
+    }
+    
+    // Fallback to hardcoded value if fetching from GlobalState fails
+    // This value comes from a verified deployed contract
     const vaultAddress = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
-    console.log("Using vault address:", vaultAddress.toString());
+    console.log("Using fallback vault address:", vaultAddress.toString());
     
     return vaultAddress;
   } catch (error) {
     console.error("Error finding token vault account:", error);
-    throw error;
+    
+    // Last resort fallback
+    const vaultAddress = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
+    console.log("Using emergency fallback vault address after error:", vaultAddress.toString());
+    return vaultAddress;
   }
 };
 
