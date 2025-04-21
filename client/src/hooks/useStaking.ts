@@ -110,9 +110,31 @@ export function useStaking() {
     
     try {
       const [userInfoPDA] = await findUserInfoPDA(publicKey);
-      const accountInfo = await connection.getAccountInfo(userInfoPDA);
       
-      return accountInfo !== null;
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      try {
+        const accountInfo = await connection.getAccountInfo(userInfoPDA);
+        const isRegistered = accountInfo !== null;
+        
+        // Improved logging that doesn't look like an error
+        if (!isRegistered) {
+          console.log("User not yet registered with staking program:", userInfoPDA.toString());
+        } else {
+          console.log("User is registered with staking program:", userInfoPDA.toString());
+        }
+        
+        return isRegistered;
+      } catch (err: any) {
+        // If this is a rate limit error, we should log it differently
+        if (err?.message?.includes('429')) {
+          console.warn("Rate limit hit while checking registration status, assuming not registered");
+        } else {
+          console.warn("Non-critical error while checking registration:", err?.message);
+        }
+        return false;
+      }
     } catch (error) {
       console.error("Error checking user registration:", error);
       return false;
@@ -326,14 +348,29 @@ export function useStaking() {
                   await new Promise(resolve => setTimeout(resolve, 500));
                   return fetchUserStakeInfo(false);
                 }
+                
+                // Handle the "Account does not exist" error specifically
+                // This is normal for users who haven't staked yet
+                if (err?.message && typeof err.message === 'string' && 
+                    (err.message.includes('Account does not exist') || 
+                     err.message.includes('has no data'))) {
+                  console.log("User hasn't staked yet, account doesn't exist:", userInfoPDA.toString());
+                  return null; // Return null instead of throwing
+                }
+                
                 throw err;
               }
             };
             
             const userStakeInfo = await fetchUserStakeInfo();
             
-            // @ts-ignore - Handle potential type issues with Anchor
-            setStakedAmount(fromBN(userStakeInfo.amountStaked));
+            if (userStakeInfo) {
+              // @ts-ignore - Handle potential type issues with Anchor
+              setStakedAmount(fromBN(userStakeInfo.amountStaked));
+            } else {
+              // This is a normal case for non-stakers, not an error
+              setStakedAmount(0);
+            }
           } catch (error) {
             console.error("Error fetching user stake info account:", error);
             setStakedAmount(0);

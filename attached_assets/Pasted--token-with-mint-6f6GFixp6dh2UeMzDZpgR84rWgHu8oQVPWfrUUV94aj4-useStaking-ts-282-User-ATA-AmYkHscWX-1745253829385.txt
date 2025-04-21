@@ -1,0 +1,161 @@
+ token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:63 Finding user_info PDA for: 9qELzct4XMLQFG8CoAsN4Zx7vsZHEwBxoVG81tm4ToQX
+useStaking.ts:338 Error fetching user stake info account: Error: Account does not exist or has no data A4BCSorbj2J4mG8pQUaAgyoDLbnMAJd99xC2HJaNKs6L
+    at AccountClient.fetch (@project-serum_anchor.js?v=99e52547:4096:13)
+    at async fetchUserStakeInfo (useStaking.ts:322:24)
+    at async refreshBalances (useStaking.ts:333:35)
+overrideMethod @ hook.js:608
+refreshBalances @ useStaking.ts:338
+await in refreshBalances
+(anonymous) @ SolanaStakingWidget.tsx:140
+setTimeout
+(anonymous) @ SolanaStakingWidget.tsx:139
+commitHookEffectListMount @ chunk-276SZO74.js?v=99e52547:16915
+commitPassiveMountOnFiber @ chunk-276SZO74.js?v=99e52547:18156
+commitPassiveMountEffects_complete @ chunk-276SZO74.js?v=99e52547:18129
+commitPassiveMountEffects_begin @ chunk-276SZO74.js?v=99e52547:18119
+commitPassiveMountEffects @ chunk-276SZO74.js?v=99e52547:18109
+flushPassiveEffectsImpl @ chunk-276SZO74.js?v=99e52547:19490
+flushPassiveEffects @ chunk-276SZO74.js?v=99e52547:19447
+performSyncWorkOnRoot @ chunk-276SZO74.js?v=99e52547:18868
+flushSyncCallbacks @ chunk-276SZO74.js?v=99e52547:9119
+commitRootImpl @ chunk-276SZO74.js?v=99e52547:19432
+commitRoot @ chunk-276SZO74.js?v=99e52547:19277
+finishConcurrentRender @ chunk-276SZO74.js?v=99e52547:18805
+performConcurrentWorkOnRoot @ chunk-276SZO74.js?v=99e52547:18718
+workLoop @ chunk-276SZO74.js?v=99e52547:197
+flushWork @ chunk-276SZO74.js?v=99e52547:176
+performWorkUntilDeadline @ chunk-276SZO74.js?v=99e52547:384Understand this error
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:63 Finding user_info PDA for: 9qELzct4XMLQFG8CoAsN4Zx7vsZHEwBxoVG81tm4ToQX
+useStaking.ts:338 Error fetching user stake info account: Error: Account does not exist or has no data A4BCSorbj2J4mG8pQUaAgyoDLbnMAJd99xC2HJaNKs6L
+    at AccountClient.fetch (@project-serum_anchor.js?v=99e52547:4096:13)
+    at async fetchUserStakeInfo (useStaking.ts:322:24)
+    at async refreshBalances (useStaking.ts:333:35)
+overrideMethod @ hook.js:608
+refreshBalances @ useStaking.ts:338
+await in refreshBalances
+(anonymous) @ SolanaStakingWidget.tsx:140
+setTimeout
+(anonymous) @ SolanaStakingWidget.tsx:139
+commitHookEffectListMount @ chunk-276SZO74.js?v=99e52547:16915
+commitPassiveMountOnFiber @ chunk-276SZO74.js?v=99e52547:18156
+commitPassiveMountEffects_complete @ chunk-276SZO74.js?v=99e52547:18129
+commitPassiveMountEffects_begin @ chunk-276SZO74.js?v=99e52547:18119
+commitPassiveMountEffects @ chunk-276SZO74.js?v=99e52547:18109
+flushPassiveEffectsImpl @ chunk-276SZO74.js?v=99e52547:19490
+flushPassiveEffects @ chunk-276SZO74.js?v=99e52547:19447
+(anonymous) @ chunk-276SZO74.js?v=99e52547:19328
+workLoop @ chunk-276SZO74.js?v=99e52547:197
+flushWork @ chunk-276SZO74.js?v=99e52547:176
+performWorkUntilDeadline @ chunk-276SZO74.js?v=99e52547:384Understand this error
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:63 Finding user_info PDA for: 9qELzct4XMLQFG8CoAsN4Zx7vsZHEwBxoVG81tm4ToQX
+useStaking.ts:338 Error fetching user stake info account: Error: Account does not exist or has no data A4BCSorbj2J4mG8pQUaAgyoDLbnMAJd99xC2HJaNKs6L
+    at AccountClient.fetch (@project-serum_anchor.js?v=99e52547:4096:13)
+    at async fetchUserStakeInfo (useStaking.ts:322:24)
+    at async refreshBalances (useStaking.ts:333:35)
+overrideMethod @ hook.js:608
+refreshBalances @ useStaking.ts:338
+await in refreshBalances
+(anonymous) @ SolanaStakingWidget.tsx:140
+setTimeout
+(anonymous) @ SolanaStakingWidget.tsx:139
+commitHookEffectListMount @ chunk-276SZO74.js?v=99e52547:16915
+commitPassiveMountOnFiber @ chunk-276SZO74.js?v=99e52547:18156
+commitPassiveMountEffects_complete @ chunk-276SZO74.js?v=99e52547:18129
+commitPassiveMountEffects_begin @ chunk-276SZO74.js?v=99e52547:18119
+commitPassiveMountEffects @ chunk-276SZO74.js?v=99e52547:18109
+flushPassiveEffectsImpl @ chunk-276SZO74.js?v=99e52547:19490
+flushPassiveEffects @ chunk-276SZO74.js?v=99e52547:19447
+(anonymous) @ chunk-276SZO74.js?v=99e52547:19328
+workLoop @ chunk-276SZO74.js?v=99e52547:197
+flushWork @ chunk-276SZO74.js?v=99e52547:176
+performWorkUntilDeadline @ chunk-276SZO74.js?v=99e52547:384Understand this error
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:63 Finding user_info PDA for: 9qELzct4XMLQFG8CoAsN4Zx7vsZHEwBxoVG81tm4ToQX
+useStaking.ts:338 Error fetching user stake info account: Error: Account does not exist or has no data A4BCSorbj2J4mG8pQUaAgyoDLbnMAJd99xC2HJaNKs6L
+    at AccountClient.fetch (@project-serum_anchor.js?v=99e52547:4096:13)
+    at async fetchUserStakeInfo (useStaking.ts:322:24)
+    at async refreshBalances (useStaking.ts:333:35)
+overrideMethod @ hook.js:608
+refreshBalances @ useStaking.ts:338
+await in refreshBalances
+(anonymous) @ SolanaStakingWidget.tsx:140
+setTimeout
+(anonymous) @ SolanaStakingWidget.tsx:139
+commitHookEffectListMount @ chunk-276SZO74.js?v=99e52547:16915
+commitPassiveMountOnFiber @ chunk-276SZO74.js?v=99e52547:18156
+commitPassiveMountEffects_complete @ chunk-276SZO74.js?v=99e52547:18129
+commitPassiveMountEffects_begin @ chunk-276SZO74.js?v=99e52547:18119
+commitPassiveMountEffects @ chunk-276SZO74.js?v=99e52547:18109
+flushPassiveEffectsImpl @ chunk-276SZO74.js?v=99e52547:19490
+flushPassiveEffects @ chunk-276SZO74.js?v=99e52547:19447
+(anonymous) @ chunk-276SZO74.js?v=99e52547:19328
+workLoop @ chunk-276SZO74.js?v=99e52547:197
+flushWork @ chunk-276SZO74.js?v=99e52547:176
+performWorkUntilDeadline @ chunk-276SZO74.js?v=99e52547:384Understand this error
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:63 Finding user_info PDA for: 9qELzct4XMLQFG8CoAsN4Zx7vsZHEwBxoVG81tm4ToQX
+useStaking.ts:338 Error fetching user stake info account: Error: Account does not exist or has no data A4BCSorbj2J4mG8pQUaAgyoDLbnMAJd99xC2HJaNKs6L
+    at AccountClient.fetch (@project-serum_anchor.js?v=99e52547:4096:13)
+    at async fetchUserStakeInfo (useStaking.ts:322:24)
+    at async refreshBalances (useStaking.ts:333:35)
+overrideMethod @ hook.js:608
+refreshBalances @ useStaking.ts:338
+await in refreshBalances
+(anonymous) @ SolanaStakingWidget.tsx:140
+setTimeout
+(anonymous) @ SolanaStakingWidget.tsx:139
+commitHookEffectListMount @ chunk-276SZO74.js?v=99e52547:16915
+commitPassiveMountOnFiber @ chunk-276SZO74.js?v=99e52547:18156
+commitPassiveMountEffects_complete @ chunk-276SZO74.js?v=99e52547:18129
+commitPassiveMountEffects_begin @ chunk-276SZO74.js?v=99e52547:18119
+commitPassiveMountEffects @ chunk-276SZO74.js?v=99e52547:18109
+flushPassiveEffectsImpl @ chunk-276SZO74.js?v=99e52547:19490
+flushPassiveEffects @ chunk-276SZO74.js?v=99e52547:19447
+(anonymous) @ chunk-276SZO74.js?v=99e52547:19328
+workLoop @ chunk-276SZO74.js?v=99e52547:197
+flushWork @ chunk-276SZO74.js?v=99e52547:176
+performWorkUntilDeadline @ chunk-276SZO74.js?v=99e52547:384Understand this error
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
+useStaking.ts:63 Finding user_info PDA for: 9qELzct4XMLQFG8CoAsN4Zx7vsZHEwBxoVG81tm4ToQX
+useStaking.ts:338 Error fetching user stake info account: Error: Account does not exist or has no data A4BCSorbj2J4mG8pQUaAgyoDLbnMAJd99xC2HJaNKs6L
+    at AccountClient.fetch (@project-serum_anchor.js?v=99e52547:4096:13)
+    at async fetchUserStakeInfo (useStaking.ts:322:24)
+    at async refreshBalances (useStaking.ts:333:35)
+overrideMethod @ hook.js:608
+refreshBalances @ useStaking.ts:338
+await in refreshBalances
+(anonymous) @ SolanaStakingWidget.tsx:140
+setTimeout
+(anonymous) @ SolanaStakingWidget.tsx:139
+commitHookEffectListMount @ chunk-276SZO74.js?v=99e52547:16915
+commitPassiveMountOnFiber @ chunk-276SZO74.js?v=99e52547:18156
+commitPassiveMountEffects_complete @ chunk-276SZO74.js?v=99e52547:18129
+commitPassiveMountEffects_begin @ chunk-276SZO74.js?v=99e52547:18119
+commitPassiveMountEffects @ chunk-276SZO74.js?v=99e52547:18109
+flushPassiveEffectsImpl @ chunk-276SZO74.js?v=99e52547:19490
+flushPassiveEffects @ chunk-276SZO74.js?v=99e52547:19447
+(anonymous) @ chunk-276SZO74.js?v=99e52547:19328
+workLoop @ chunk-276SZO74.js?v=99e52547:197
+flushWork @ chunk-276SZO74.js?v=99e52547:176
+performWorkUntilDeadline @ chunk-276SZO74.js?v=99e52547:384Understand this error
+useStaking.ts:280 Looking for token with mint: 6f6GFixp6dh2UeMzDZpgR84rWgHu8oQVPWfrUUV94aj4
+useStaking.ts:282 User ATA: AmYkHscWXpDG5vqcTSuVAa32LE4CZ3DF2rhxtnfutbU
+useStaking.ts:298 Token account info: {context: {…}, value: {…}}
