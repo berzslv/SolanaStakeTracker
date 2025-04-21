@@ -1,0 +1,81 @@
+useStaking.ts (Hook)
+ts
+Copy
+Edit
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createTransferInstruction } from "@solana/spl-token";
+import { useEffect, useState } from "react";
+import { PROGRAM_ID } from "@/constants"; // Replace with your staking program ID if not in constants
+
+const VAULT_TOKEN_ACCOUNT = new PublicKey("VAULT_TOKEN_ACCOUNT_HERE"); // <-- replace
+const USER_INFO_SEED = "user_info";
+
+export function useStaking() {
+  const { connection } = useConnection();
+  const { publicKey, sendTransaction } = useWallet();
+
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [stakedAmount, setStakedAmount] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const fetchTokenBalance = async () => {
+    if (!publicKey) return;
+    const ata = await getAssociatedTokenAddress(
+      new PublicKey("YOUR_TOKEN_MINT_HERE"),
+      publicKey
+    );
+    const accountInfo = await connection.getTokenAccountBalance(ata);
+    setTokenBalance(parseFloat(accountInfo.value.uiAmountString || "0"));
+  };
+
+  useEffect(() => {
+    fetchTokenBalance();
+  }, [publicKey]);
+
+  const stake = async (amount: number) => {
+    if (!publicKey) return;
+
+    setIsProcessing(true);
+    try {
+      const userTokenAccount = await getAssociatedTokenAddress(
+        new PublicKey("YOUR_TOKEN_MINT_HERE"),
+        publicKey
+      );
+
+      const transaction = new Transaction().add(
+        createTransferInstruction(
+          userTokenAccount,
+          VAULT_TOKEN_ACCOUNT,
+          publicKey,
+          amount * 10 ** 6 // assuming 6 decimals
+        )
+      );
+
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, "confirmed");
+
+      await fetchTokenBalance();
+      return signature;
+    } catch (err) {
+      console.error("Stake Error:", err);
+      throw err;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const unstake = async (amount: number) => {
+    // You would call your smart contract's "unstake" instruction here
+    console.log("Unstaking", amount);
+    return "mock_signature"; // Replace with actual logic
+  };
+
+  return {
+    tokenBalance,
+    stakedAmount,
+    stake,
+    unstake,
+    isProcessing,
+  };
+}

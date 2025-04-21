@@ -1,61 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram, sendAndConfirmTransaction } from '@solana/web3.js';
+import React, { useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatAmount } from '@/utils/helpers';
-import { PROGRAM_ID, TOKEN_MINT_ADDRESS } from '@/utils/constants';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useStaking } from '@/hooks/useStaking';
 
 // APY is typically fixed for staking programs
 const ESTIMATED_APY = 5.5; // 5.5% annual yield
 
 const SolanaStakingWidget: React.FC = () => {
-  const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey } = useWallet();
   const { toast } = useToast();
+  const { 
+    tokenBalance,
+    stakedAmount,
+    isLoading,
+    isProcessing,
+    isRegistered,
+    refreshBalances,
+    registerUser,
+    stake,
+    unstake
+  } = useStaking();
   
-  const [stakedBalance, setStakedBalance] = useState<number>(0);
-  const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [stakeAmount, setStakeAmount] = useState<string>('');
   const [unstakeAmount, setUnstakeAmount] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [txPending, setTxPending] = useState<boolean>(false);
-  
-  // Get token balance and staked balance
-  useEffect(() => {
-    const fetchBalances = async () => {
-      if (!publicKey) return;
-      
-      setIsLoading(true);
-      try {
-        // In a production environment, this would make a real call to fetch token balances
-        // For this demo, we're using mock data
-        
-        // Fetch token balance
-        // Ideally, we would use TokenAccountsFilter and getParsedTokenAccountsByOwner here
-        // But for demo purposes, we're using a small static value
-        setTokenBalance(1000);
-        
-        // Fetch staked balance
-        // Ideally, we would query the staking program account with the user's public key
-        setStakedBalance(500);
-      } catch (error) {
-        console.error('Error fetching balances:', error);
-        toast({
-          title: 'Error fetching balances',
-          description: 'Failed to load your token balances',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchBalances();
-  }, [publicKey, connection, toast]);
   
   // Calculate estimated rewards
   const calculateRewards = (amount: number): number => {
@@ -63,9 +36,21 @@ const SolanaStakingWidget: React.FC = () => {
     return (amount * ESTIMATED_APY) / 100 / 12;
   };
   
+  // Handle registration
+  const handleRegister = async () => {
+    if (!publicKey) return;
+    
+    try {
+      await registerUser();
+      await refreshBalances();
+    } catch (error) {
+      console.error('Registration error:', error);
+    }
+  };
+  
   // Handle staking tokens
   const handleStake = async () => {
-    if (!publicKey || !sendTransaction) return;
+    if (!publicKey) return;
     
     const stakeAmountNum = parseFloat(stakeAmount);
     if (isNaN(stakeAmountNum) || stakeAmountNum <= 0) {
@@ -86,50 +71,17 @@ const SolanaStakingWidget: React.FC = () => {
       return;
     }
     
-    setTxPending(true);
     try {
-      // In a real implementation, we would create a transaction to call the staking program
-      // For this example, we'll create a placeholder transaction
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: publicKey, // Sending to self as placeholder
-          lamports: 0, // Sending 0 lamports as this is just a placeholder
-        })
-      );
-      
-      // Send transaction
-      const signature = await sendTransaction(transaction, connection);
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-      
-      // Update balances (in a real implementation, we'd refetch from the blockchain)
-      setTokenBalance(prev => prev - stakeAmountNum);
-      setStakedBalance(prev => prev + stakeAmountNum);
-      
-      toast({
-        title: 'Staking successful',
-        description: `You have staked ${stakeAmountNum} HATM tokens`,
-      });
-      
-      // Reset input
+      await stake(stakeAmountNum);
       setStakeAmount('');
     } catch (error) {
       console.error('Error staking tokens:', error);
-      toast({
-        title: 'Staking failed',
-        description: 'There was an error processing your staking request',
-        variant: 'destructive',
-      });
-    } finally {
-      setTxPending(false);
     }
   };
   
   // Handle unstaking tokens
   const handleUnstake = async () => {
-    if (!publicKey || !sendTransaction) return;
+    if (!publicKey) return;
     
     const unstakeAmountNum = parseFloat(unstakeAmount);
     if (isNaN(unstakeAmountNum) || unstakeAmountNum <= 0) {
@@ -141,7 +93,7 @@ const SolanaStakingWidget: React.FC = () => {
       return;
     }
     
-    if (unstakeAmountNum > stakedBalance) {
+    if (unstakeAmountNum > stakedAmount) {
       toast({
         title: 'Insufficient staked balance',
         description: 'You do not have enough staked tokens to unstake',
@@ -150,58 +102,48 @@ const SolanaStakingWidget: React.FC = () => {
       return;
     }
     
-    setTxPending(true);
     try {
-      // In a real implementation, we would create a transaction to call the staking program
-      // For this example, we'll create a placeholder transaction
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: publicKey, // Sending to self as placeholder
-          lamports: 0, // Sending 0 lamports as this is just a placeholder
-        })
-      );
-      
-      // Send transaction
-      const signature = await sendTransaction(transaction, connection);
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-      
-      // Update balances (in a real implementation, we'd refetch from the blockchain)
-      setTokenBalance(prev => prev + unstakeAmountNum);
-      setStakedBalance(prev => prev - unstakeAmountNum);
-      
-      toast({
-        title: 'Unstaking successful',
-        description: `You have unstaked ${unstakeAmountNum} HATM tokens`,
-      });
-      
-      // Reset input
+      await unstake(unstakeAmountNum);
       setUnstakeAmount('');
     } catch (error) {
       console.error('Error unstaking tokens:', error);
-      toast({
-        title: 'Unstaking failed',
-        description: 'There was an error processing your unstaking request',
-        variant: 'destructive',
-      });
-    } finally {
-      setTxPending(false);
     }
+  };
+  
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    await refreshBalances();
+    toast({
+      title: 'Balances refreshed',
+      description: 'Your token balances have been updated'
+    });
   };
   
   // Handle max buttons
   const handleMaxStake = () => setStakeAmount(tokenBalance.toString());
-  const handleMaxUnstake = () => setUnstakeAmount(stakedBalance.toString());
+  const handleMaxUnstake = () => setUnstakeAmount(stakedAmount.toString());
   
   return (
     <div className="space-y-8">
       {/* Balance Card */}
       <Card>
-        <CardHeader>
-          <CardTitle>Your HATM Balances</CardTitle>
-          <CardDescription>View and manage your HATM token balances</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle>Your HATM Balances</CardTitle>
+            <CardDescription>View and manage your HATM token balances</CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleRefresh}
+            disabled={isLoading || isProcessing}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,11 +163,35 @@ const SolanaStakingWidget: React.FC = () => {
                 {isLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  `${formatAmount(stakedBalance)} HATM`
+                  `${formatAmount(stakedAmount)} HATM`
                 )}
               </div>
             </div>
           </div>
+          
+          {!isRegistered && !isLoading && (
+            <Alert className="mt-4">
+              <AlertDescription>
+                You need to register with the staking program first.
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRegister}
+                  disabled={isProcessing}
+                  className="ml-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Registering...
+                    </>
+                  ) : (
+                    'Register Now'
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
       
@@ -245,7 +211,7 @@ const SolanaStakingWidget: React.FC = () => {
                 <button
                   onClick={handleMaxStake}
                   className="text-xs text-primary hover:underline"
-                  disabled={isLoading || txPending}
+                  disabled={isLoading || isProcessing || tokenBalance === 0}
                 >
                   MAX
                 </button>
@@ -257,7 +223,7 @@ const SolanaStakingWidget: React.FC = () => {
                   placeholder="0.00"
                   value={stakeAmount}
                   onChange={(e) => setStakeAmount(e.target.value)}
-                  disabled={isLoading || txPending || !publicKey}
+                  disabled={isLoading || isProcessing || !publicKey || !isRegistered}
                   className="pr-16"
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -282,10 +248,10 @@ const SolanaStakingWidget: React.FC = () => {
         <CardFooter>
           <Button
             onClick={handleStake}
-            disabled={isLoading || txPending || !publicKey || !stakeAmount || parseFloat(stakeAmount) <= 0}
+            disabled={isLoading || isProcessing || !publicKey || !isRegistered || !stakeAmount || parseFloat(stakeAmount) <= 0}
             className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600"
           >
-            {txPending ? (
+            {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Staking...
@@ -312,7 +278,7 @@ const SolanaStakingWidget: React.FC = () => {
               <button
                 onClick={handleMaxUnstake}
                 className="text-xs text-primary hover:underline"
-                disabled={isLoading || txPending}
+                disabled={isLoading || isProcessing || stakedAmount === 0}
               >
                 MAX
               </button>
@@ -324,7 +290,7 @@ const SolanaStakingWidget: React.FC = () => {
                 placeholder="0.00"
                 value={unstakeAmount}
                 onChange={(e) => setUnstakeAmount(e.target.value)}
-                disabled={isLoading || txPending || !publicKey}
+                disabled={isLoading || isProcessing || !publicKey || !isRegistered || stakedAmount === 0}
                 className="pr-16"
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -336,11 +302,11 @@ const SolanaStakingWidget: React.FC = () => {
         <CardFooter>
           <Button
             onClick={handleUnstake}
-            disabled={isLoading || txPending || !publicKey || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
+            disabled={isLoading || isProcessing || !publicKey || !isRegistered || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
             variant="outline"
             className="w-full border-pink-500 text-pink-500 hover:bg-pink-500/10"
           >
-            {txPending ? (
+            {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Unstaking...
@@ -355,8 +321,8 @@ const SolanaStakingWidget: React.FC = () => {
       {/* Disclaimer */}
       <div className="text-xs text-muted-foreground text-center">
         <p>
-          This is a demonstration of HATM staking functionality. In a production environment, these
-          transactions would interact with a real staking program on the Solana blockchain.
+          HATM token staking is powered by Solana. All staking operations interact with 
+          a real staking program on the Solana devnet.
         </p>
       </div>
     </div>
