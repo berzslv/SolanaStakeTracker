@@ -1,10 +1,31 @@
 import { useTransactionStatus } from "@/contexts/TransactionContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { SOLSCAN_URL } from "@/utils/constants";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function TransactionStatus() {
-  const { transaction } = useTransactionStatus();
+  const { transaction, clearTransactionStatus } = useTransactionStatus();
+  const [showDismiss, setShowDismiss] = useState(false);
+  
+  // Auto-hide successful transactions after 15 seconds
+  useEffect(() => {
+    if (transaction?.status === 'success') {
+      const timer = setTimeout(() => {
+        setShowDismiss(true);
+      }, 5000);
+      
+      const hideTimer = setTimeout(() => {
+        clearTransactionStatus();
+      }, 15000);
+      
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(hideTimer);
+      };
+    }
+  }, [transaction, clearTransactionStatus]);
   
   if (!transaction || !transaction.message) {
     return null;
@@ -28,31 +49,55 @@ export default function TransactionStatus() {
   }
   
   return (
-    <Alert className={className}>
-      <div className="flex items-start">
-        <div className="mr-2 mt-0.5">
-          {icon}
+    <div className="mt-4">
+      <Alert className={className}>
+        <div className="flex items-start">
+          <div className="mr-2 mt-0.5 flex-shrink-0">
+            {icon}
+          </div>
+          <div className="flex-grow">
+            <AlertTitle className="mb-1">{title}</AlertTitle>
+            <AlertDescription className="text-sm">
+              {transaction.message}
+              
+              {transaction.signature && (
+                <div className="mt-2 flex items-center space-x-4">
+                  <a 
+                    href={`${SOLSCAN_URL}/tx/${transaction.signature}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center text-xs hover:underline font-medium"
+                  >
+                    View on Solscan <ExternalLink className="h-3 w-3 ml-1" />
+                  </a>
+                  
+                  {showDismiss && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearTransactionStatus}
+                      className="text-xs h-6 px-2"
+                    >
+                      Dismiss
+                    </Button>
+                  )}
+                </div>
+              )}
+            </AlertDescription>
+          </div>
+          
+          {transaction.status === 'error' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearTransactionStatus}
+              className="h-6 ml-2 px-2"
+            >
+              ×
+            </Button>
+          )}
         </div>
-        <div>
-          <AlertTitle className="mb-1">{title}</AlertTitle>
-          <AlertDescription className="text-sm">
-            {transaction.message}
-            
-            {transaction.signature && (
-              <div className="mt-2">
-                <a 
-                  href={`${SOLSCAN_URL}/tx/${transaction.signature}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline text-xs"
-                >
-                  View on Solscan
-                </a>
-              </div>
-            )}
-          </AlertDescription>
-        </div>
-      </div>
-    </Alert>
+      </Alert>
+    </div>
   );
 }
