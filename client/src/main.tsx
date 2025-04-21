@@ -1,3 +1,6 @@
+// First, import Buffer polyfill before any other imports
+import "./utils/buffer-polyfill"; 
+
 import { createRoot } from "react-dom/client";
 import { WalletProvider } from "./components/WalletProvider";
 import App from "./App";

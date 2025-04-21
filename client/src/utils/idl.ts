@@ -1,6 +1,13 @@
-import { IdlAccounts, Idl } from '@project-serum/anchor';
+// Define our own types instead of importing from @project-serum/anchor
+export type StakingIdl = {
+  version: string;
+  name: string;
+  instructions: any[];
+  accounts: any[];
+  errors: any[];
+}
 
-export const IDL: Idl = {
+export const IDL: StakingIdl = {
   "version": "0.1.0",
   "name": "referral_staking",
   "instructions": [
@@ -744,5 +751,30 @@ export type ReferralStaking = {
   ]
 };
 
-export type GlobalState = IdlAccounts<ReferralStaking>["globalState"];
-export type UserInfo = IdlAccounts<ReferralStaking>["userInfo"];
+// Define types for our accounts
+export type GlobalState = {
+  authority: string;
+  tokenMint: string;
+  vault: string;
+  rewardRate: number;
+  unlockDuration: number;
+  earlyUnstakePenalty: number;
+  minStakeAmount: number;
+  referralRewardRate: number;
+  totalStaked: number;
+  stakersCount: number;
+  rewardPool: number;
+  lastUpdateTime: number;
+  bump: number;
+};
+
+export type UserInfo = {
+  owner: string;
+  stakedAmount: number;
+  rewards: number;
+  lastStakeTime: number;
+  lastClaimTime: number;
+  referrer: string | null;
+  referralCount: number;
+  totalReferralRewards: number;
+};
