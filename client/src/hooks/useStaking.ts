@@ -510,8 +510,8 @@ export function useStaking() {
       const [globalStatePDA] = await findVaultPDA(); // This is the GlobalState PDA with "global_state" seed
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA with "user_info" seed
       
-      // Get the token vault account using our helper
-      const vaultTokenAccount = await findTokenVaultPDA();
+      // Get the token vault account using our helper in anchor.ts
+      const vaultTokenAccount = await findTokenVaultAccount();
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
@@ -637,8 +637,8 @@ export function useStaking() {
       const [globalStatePDA] = await findVaultPDA(); // This is the "global_state" PDA
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA
       
-      // Get the token vault account using findTokenVaultPDA
-      const vaultTokenAccount = await findTokenVaultPDA();
+      // Get the token vault account using findTokenVaultAccount
+      const vaultTokenAccount = await findTokenVaultAccount();
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
