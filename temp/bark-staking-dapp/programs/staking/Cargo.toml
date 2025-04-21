@@ -1,0 +1,14 @@
+[package]
+name = "bark_staking_program"
+version = "1.0.0"
+description = "BARK Staking Program"
+edition = "2021"
+
+[lib]
+crate-type = ["lib"]
+name = "bark_staking_program"
+
+[dependencies]
+anchor-lang = "0.30.0"
+solana-program = "1.18.12"
+solana-sdk = { version = "1.18.12", features = ["full"] }
