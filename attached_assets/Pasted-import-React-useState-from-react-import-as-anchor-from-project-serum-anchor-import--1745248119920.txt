@@ -1,0 +1,75 @@
+import React, { useState } from "react";
+import * as anchor from "@project-serum/anchor";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
+import { BN } from "bn.js";
+
+// Replace these with your actual values
+const PROGRAM_ID = new PublicKey("YourProgramIdHere");
+const STAKING_IDL = {/* your IDL JSON */};
+const connection = new anchor.web3.Connection("https://api.devnet.solana.com");
+
+const StakeButton = () => {
+  const wallet = useWallet();
+  const [loading, setLoading] = useState(false);
+
+  const handleStake = async () => {
+    if (!wallet.connected || !wallet.publicKey) {
+      alert("Please connect your wallet.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const provider = new anchor.AnchorProvider(connection, wallet, {
+        preflightCommitment: "processed",
+      });
+
+      const program = new anchor.Program(STAKING_IDL, PROGRAM_ID, provider);
+
+      // Replace these with actual PDA or derived accounts
+      const userInfo = PublicKey.findProgramAddressSync(
+        [Buffer.from("user"), wallet.publicKey.toBuffer()],
+        PROGRAM_ID
+      )[0];
+
+      const vault = new PublicKey("YourVaultAddressHere");
+      const userTokenAccount = new PublicKey("YourTokenAccountHere");
+      const vaultTokenAccount = new PublicKey("VaultTokenAccountHere");
+
+      const amount = new BN(100 * 10 ** 6); // Staking 100 tokens (6 decimals)
+
+      await program.methods
+        .stake(amount)
+        .accounts({
+          user: wallet.publicKey,
+          userInfo,
+          vault,
+          userTokenAccount,
+          vaultTokenAccount,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+
+      alert("Successfully staked tokens!");
+    } catch (err) {
+      console.error("Stake error:", err);
+      alert("Failed to stake tokens. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleStake}
+      disabled={loading}
+      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+    >
+      {loading ? "Staking..." : "Stake Tokens"}
+    </button>
+  );
+};
+
+export default StakeButton;

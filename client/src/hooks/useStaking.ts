@@ -1,12 +1,21 @@
 import { useState, useCallback, useEffect, useContext } from 'react';
 import { WalletContext, ConnectionContext } from '@/components/WalletProvider';
-import { PublicKey, Transaction } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import { TOKEN_MINT_ADDRESS } from '@/utils/constants';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactionStatus } from '@/contexts/TransactionContext';
-import { sleep } from '@/utils/helpers';
+import * as anchor from '@project-serum/anchor';
+import { 
+  getStakingProgram, 
+  findStakingVault, 
+  findVaultAuthority,
+  findUserStakeInfoAccount,
+  findTokenVaultAccount,
+  getUserStakeInfo,
+  toTokenAmount
+} from '@/utils/anchor';
 
 // Decimal precision for token amounts
 const DECIMALS = 9;
@@ -55,19 +64,23 @@ export function useStaking() {
     }
   }, [publicKey, connection]);
 
-  // Fetch staked amount 
+  // Fetch staked amount from the blockchain
   const fetchStakedAmount = useCallback(async () => {
-    if (!publicKey) return 0;
+    if (!publicKey || !signTransaction) return 0;
     
     try {
-      // In a real implementation, we would fetch the user's staked amount from the blockchain
-      // For this demo, we'll return a static value
-      return 50;
+      const wallet = {
+        publicKey: new PublicKey(publicKey),
+        signTransaction
+      };
+      
+      const userStakeInfo = await getUserStakeInfo(connection, wallet);
+      return userStakeInfo.amountStaked;
     } catch (error) {
       console.error('Error fetching staked amount:', error);
       return 0;
     }
-  }, [publicKey]);
+  }, [publicKey, signTransaction, connection]);
 
   // Refresh balances
   const refreshBalances = useCallback(async () => {
@@ -89,9 +102,55 @@ export function useStaking() {
     }
   }, [publicKey, fetchTokenBalance, fetchStakedAmount]);
 
-  // Stake tokens
+  // Register user account if needed
+  const ensureUserRegistered = useCallback(async () => {
+    if (!publicKey || !signTransaction) {
+      throw new Error('Wallet not connected');
+    }
+    
+    try {
+      const wallet = {
+        publicKey: new PublicKey(publicKey),
+        signTransaction
+      };
+      
+      const program = getStakingProgram(connection, wallet);
+      const userInfoAccount = findUserStakeInfoAccount(wallet.publicKey);
+      
+      // Check if the user account already exists
+      try {
+        await program.account.userStakeInfo.fetch(userInfoAccount);
+        // If it exists, return
+        return;
+      } catch (error) {
+        // If it doesn't exist, we need to create it
+        console.log('User account does not exist, creating...');
+        
+        const vault = await findStakingVault();
+        
+        // Register user
+        const tx = await program.methods
+          .registerUser()
+          .accounts({
+            user: wallet.publicKey,
+            userInfo: userInfoAccount,
+            vault,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY
+          })
+          .rpc();
+          
+        console.log('User registered:', tx);
+      }
+    } catch (error) {
+      console.error('Error registering user:', error);
+      throw error;
+    }
+  }, [publicKey, signTransaction, connection]);
+
+  // Stake tokens - real blockchain transaction
   const stake = useCallback(async (amount: number) => {
-    if (!publicKey || !connected) {
+    if (!publicKey || !connected || !signTransaction) {
       throw new Error('Wallet not connected');
     }
     
@@ -103,38 +162,131 @@ export function useStaking() {
     });
     
     try {
-      // Simulate transaction delay
-      await sleep(2000);
+      const wallet = {
+        publicKey: new PublicKey(publicKey),
+        signTransaction
+      };
       
-      // Update UI with success
-      const mockSignature = `stake_${Date.now().toString(36)}`;
+      // Ensure user is registered
+      await ensureUserRegistered();
       
+      // Update status
       setTransactionStatus({
-        status: 'success',
-        message: 'Tokens staked successfully!',
-        signature: mockSignature
+        status: null,
+        message: 'Building transaction...',
+        signature: null
       });
       
-      // Show success toast
-      toast({
-        title: 'Tokens staked successfully!',
-        description: `Staked ${amount} HATM tokens`
-      });
+      const program = getStakingProgram(connection, wallet);
+      const userInfoAccount = findUserStakeInfoAccount(wallet.publicKey);
+      const vault = await findStakingVault();
+      const tokenVault = await findTokenVaultAccount();
       
-      // Update balances
-      setTokenBalance(prev => prev - amount);
-      setStakedAmount(prev => prev + amount);
+      // Get or create the user's token account
+      const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
+      const userTokenAccount = await getAssociatedTokenAddress(
+        tokenMint,
+        wallet.publicKey
+      );
       
-      // Log transaction to backend
-      await apiRequest('POST', '/api/transaction/log', {
-        walletAddress: publicKey,
-        amount: amount.toString(),
-        transactionType: 'stake',
-        transactionSignature: mockSignature,
-        timestamp: new Date().toISOString()
-      });
-      
-      return mockSignature;
+      // Check if token account exists
+      const tokenAccountInfo = await connection.getAccountInfo(userTokenAccount);
+      if (!tokenAccountInfo) {
+        // Create token account first
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userTokenAccount,
+          wallet.publicKey,
+          tokenMint
+        );
+        
+        // Send and confirm transaction
+        const tx = await program.methods
+          .stake(toTokenAmount(amount))
+          .accounts({
+            user: wallet.publicKey,
+            userInfo: userInfoAccount,
+            vault,
+            userTokenAccount,
+            vaultTokenAccount: tokenVault,
+            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId
+          })
+          .preInstructions([createAtaIx])
+          .rpc();
+          
+        console.log('Stake transaction:', tx);
+        
+        // Update status
+        setTransactionStatus({
+          status: 'success',
+          message: 'Tokens staked successfully!',
+          signature: tx
+        });
+        
+        // Show success toast
+        toast({
+          title: 'Tokens staked successfully!',
+          description: `Staked ${amount} HATM tokens`
+        });
+        
+        // Log transaction to backend
+        await apiRequest('POST', '/api/transaction/log', {
+          walletAddress: publicKey,
+          amount: amount.toString(),
+          transactionType: 'stake',
+          transactionSignature: tx,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Refresh balances
+        await refreshBalances();
+        
+        return tx;
+      } else {
+        // Token account exists, stake directly
+        const tx = await program.methods
+          .stake(toTokenAmount(amount))
+          .accounts({
+            user: wallet.publicKey,
+            userInfo: userInfoAccount,
+            vault,
+            userTokenAccount,
+            vaultTokenAccount: tokenVault,
+            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId
+          })
+          .rpc();
+          
+        console.log('Stake transaction:', tx);
+        
+        // Update status
+        setTransactionStatus({
+          status: 'success',
+          message: 'Tokens staked successfully!',
+          signature: tx
+        });
+        
+        // Show success toast
+        toast({
+          title: 'Tokens staked successfully!',
+          description: `Staked ${amount} HATM tokens`
+        });
+        
+        // Log transaction to backend
+        await apiRequest('POST', '/api/transaction/log', {
+          walletAddress: publicKey,
+          amount: amount.toString(),
+          transactionType: 'stake',
+          transactionSignature: tx,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Refresh balances
+        await refreshBalances();
+        
+        return tx;
+      }
     } catch (error: any) {
       console.error('Error staking tokens:', error);
       
@@ -156,11 +308,20 @@ export function useStaking() {
     } finally {
       setIsProcessing(false);
     }
-  }, [publicKey, connected, setTransactionStatus, toast]);
+  }, [
+    publicKey, 
+    connected, 
+    signTransaction, 
+    connection, 
+    ensureUserRegistered, 
+    refreshBalances, 
+    setTransactionStatus, 
+    toast
+  ]);
 
-  // Unstake tokens
+  // Unstake tokens - real blockchain transaction
   const unstake = useCallback(async (amount: number) => {
-    if (!publicKey || !connected) {
+    if (!publicKey || !connected || !signTransaction) {
       throw new Error('Wallet not connected');
     }
     
@@ -172,16 +333,60 @@ export function useStaking() {
     });
     
     try {
-      // Simulate transaction delay
-      await sleep(2000);
+      const wallet = {
+        publicKey: new PublicKey(publicKey),
+        signTransaction
+      };
       
-      // Update UI with success
-      const mockSignature = `unstake_${Date.now().toString(36)}`;
+      // Update status
+      setTransactionStatus({
+        status: null,
+        message: 'Building transaction...',
+        signature: null
+      });
       
+      const program = getStakingProgram(connection, wallet);
+      const userInfoAccount = findUserStakeInfoAccount(wallet.publicKey);
+      const vault = await findStakingVault();
+      const vaultAuthority = await findVaultAuthority();
+      const tokenVault = await findTokenVaultAccount();
+      
+      // Get or create the user's token account
+      const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
+      const userTokenAccount = await getAssociatedTokenAddress(
+        tokenMint,
+        wallet.publicKey
+      );
+      
+      // Check if token account exists
+      const tokenAccountInfo = await connection.getAccountInfo(userTokenAccount);
+      if (!tokenAccountInfo) {
+        // Cannot unstake if token account doesn't exist
+        throw new Error('Token account does not exist. Please create it first.');
+      }
+      
+      // Send unstake transaction
+      const tx = await program.methods
+        .unstake(toTokenAmount(amount))
+        .accounts({
+          user: wallet.publicKey,
+          userInfo: userInfoAccount,
+          vault,
+          vaultAuthority,
+          vaultTokenAccount: tokenVault,
+          userTokenAccount,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId
+        })
+        .rpc();
+        
+      console.log('Unstake transaction:', tx);
+      
+      // Update status
       setTransactionStatus({
         status: 'success',
         message: 'Tokens unstaked successfully!',
-        signature: mockSignature
+        signature: tx
       });
       
       // Show success toast
@@ -190,20 +395,19 @@ export function useStaking() {
         description: `Unstaked ${amount} HATM tokens`
       });
       
-      // Update balances
-      setTokenBalance(prev => prev + amount);
-      setStakedAmount(prev => prev - amount);
-      
       // Log transaction to backend
       await apiRequest('POST', '/api/transaction/log', {
         walletAddress: publicKey,
         amount: amount.toString(),
         transactionType: 'unstake',
-        transactionSignature: mockSignature,
+        transactionSignature: tx,
         timestamp: new Date().toISOString()
       });
       
-      return mockSignature;
+      // Refresh balances
+      await refreshBalances();
+      
+      return tx;
     } catch (error: any) {
       console.error('Error unstaking tokens:', error);
       
@@ -225,7 +429,15 @@ export function useStaking() {
     } finally {
       setIsProcessing(false);
     }
-  }, [publicKey, connected, setTransactionStatus, toast]);
+  }, [
+    publicKey, 
+    connected, 
+    signTransaction, 
+    connection, 
+    refreshBalances, 
+    setTransactionStatus, 
+    toast
+  ]);
 
   // Initial load of balances when wallet connects
   useEffect(() => {
