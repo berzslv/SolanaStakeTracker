@@ -375,15 +375,16 @@ export function useStaking() {
             // Wait before making another RPC call
             await new Promise(resolve => setTimeout(resolve, delayBetweenRequests));
             
-            // Get UserStakeInfo account with retry logic
-            const fetchUserStakeInfo = async (retry = true) => {
+            // Get UserInfo account with retry logic - updated for referral_staking contract
+            const fetchUserInfo = async (retry = true) => {
               try {
-                return await program.account.userStakeInfo.fetch(userInfoPDA);
+                // Changed from userStakeInfo to userInfo (correct account type)
+                return await program.account.userInfo.fetch(userInfoPDA);
               } catch (err: any) {
                 if (retry && err?.message && typeof err.message === 'string' && err.message.includes('429')) {
-                  console.log("Server responded with 429 on userStakeInfo fetch. Retrying after 500ms...");
+                  console.log("Server responded with 429 on userInfo fetch. Retrying after 500ms...");
                   await new Promise(resolve => setTimeout(resolve, 500));
-                  return fetchUserStakeInfo(false);
+                  return fetchUserInfo(false);
                 }
                 
                 // Handle the "Account does not exist" error specifically
@@ -399,11 +400,16 @@ export function useStaking() {
               }
             };
             
-            const userStakeInfo = await fetchUserStakeInfo();
+            const userInfo = await fetchUserInfo();
             
-            if (userStakeInfo) {
+            if (userInfo) {
+              // Access the correct field name - stakedAmount not amountStaked
               // @ts-ignore - Handle potential type issues with Anchor
-              setStakedAmount(fromBN(userStakeInfo.amountStaked));
+              setStakedAmount(fromBN(userInfo.stakedAmount));
+              
+              // In the future we could display referral info and rewards too
+              console.log("User referral count:", userInfo.referralCount?.toNumber());
+              console.log("User rewards:", fromBN(userInfo.rewards));
             } else {
               // This is a normal case for non-stakers, not an error
               setStakedAmount(0);
@@ -498,12 +504,8 @@ export function useStaking() {
       const [globalStatePDA] = await findVaultPDA(); // This is the GlobalState PDA with "global_state" seed
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA with "user_info" seed
       
-      // Get the token vault account using the Token Associated Address for the global state
-      const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
-      const vaultTokenAccount = await anchor.utils.token.associatedAddress({
-        mint: tokenMint,
-        owner: globalStatePDA
-      });
+      // Get the token vault account using our helper
+      const vaultTokenAccount = await findTokenVaultPDA();
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
@@ -629,12 +631,8 @@ export function useStaking() {
       const [globalStatePDA] = await findVaultPDA(); // This is the "global_state" PDA
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA
       
-      // Get the token vault account using the Token Associated Address for the global state
-      const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
-      const vaultTokenAccount = await anchor.utils.token.associatedAddress({
-        mint: tokenMint,
-        owner: globalStatePDA
-      });
+      // Get the token vault account using findTokenVaultPDA
+      const vaultTokenAccount = await findTokenVaultPDA();
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
