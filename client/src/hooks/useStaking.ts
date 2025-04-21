@@ -185,12 +185,12 @@ export function useStaking() {
       console.log("Building transaction...");
       
       // Create instruction to register user with detailed logging
+      // Fixed to match the referral_staking contract
       const tx = await program.methods
-        .registerUser() // No arguments according to IDL
+        .registerUser(null) // Referral staking contract requires referrer as nullable argument
         .accounts({
-          user: publicKey, // According to the contract expected params
+          owner: publicKey, // Changed from user to owner in the contract
           userInfo: userInfoPDA,
-          vault: vaultPDA, // According to the contract expected params
           systemProgram: SystemProgram.programId,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY
         })
@@ -494,31 +494,37 @@ export function useStaking() {
       
       console.log("User is registered, proceeding with staking...");
       
-      // Get necessary PDAs
-      const [vaultPDA] = await findVaultPDA();
-      const [userInfoPDA] = await findUserInfoPDA(publicKey);
-      const tokenVaultAccount = await findTokenVaultPDA();
+      // Get necessary PDAs - updated for referral staking contract
+      const [globalStatePDA] = await findVaultPDA(); // This is the GlobalState PDA with "global_state" seed
+      const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA with "user_info" seed
+      
+      // Get the token vault account using the Token Associated Address for the global state
+      const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
+      const vaultTokenAccount = await anchor.utils.token.associatedAddress({
+        mint: tokenMint,
+        owner: globalStatePDA
+      });
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
       
       console.log("Staking with accounts:", {
-        user: publicKey.toString(),
+        owner: publicKey.toString(),
+        globalState: globalStatePDA.toString(),
         userInfo: userInfoPDA.toString(),
-        vault: vaultPDA.toString(),
         userTokenAccount: userTokenAccount.toString(),
-        vaultTokenAccount: tokenVaultAccount.toString()
+        vault: vaultTokenAccount.toString()
       });
       
       // Create stake instruction
       const tx = await program.methods
         .stake(toBN(amount))
         .accounts({
-          user: publicKey,
+          owner: publicKey, // Changed from user to owner
+          globalState: globalStatePDA, // Added globalState
           userInfo: userInfoPDA,
-          vault: vaultPDA,
           userTokenAccount: userTokenAccount,
-          vaultTokenAccount: tokenVaultAccount,
+          vault: vaultTokenAccount, // The token vault (ATA of global state)
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
@@ -619,24 +625,36 @@ export function useStaking() {
         return;
       }
       
-      // Get necessary PDAs
-      const [vaultPDA] = await findVaultPDA();
-      const [vaultAuthorityPDA] = await findVaultAuthorityPDA();
-      const [userInfoPDA] = await findUserInfoPDA(publicKey);
-      const tokenVaultAccount = await findTokenVaultPDA();
+      // Get necessary PDAs - updated for referral staking contract
+      const [globalStatePDA] = await findVaultPDA(); // This is the "global_state" PDA
+      const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA
+      
+      // Get the token vault account using the Token Associated Address for the global state
+      const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
+      const vaultTokenAccount = await anchor.utils.token.associatedAddress({
+        mint: tokenMint,
+        owner: globalStatePDA
+      });
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
+      
+      console.log("Unstaking with accounts:", {
+        owner: publicKey.toString(),
+        globalState: globalStatePDA.toString(),
+        userInfo: userInfoPDA.toString(),
+        vault: vaultTokenAccount.toString(),
+        userTokenAccount: userTokenAccount.toString()
+      });
       
       // Create unstake instruction
       const tx = await program.methods
         .unstake(toBN(amount))
         .accounts({
-          user: publicKey,
+          owner: publicKey, // Changed from user to owner
+          globalState: globalStatePDA, // Changed to globalState
           userInfo: userInfoPDA,
-          vault: vaultPDA,
-          vaultAuthority: vaultAuthorityPDA,
-          vaultTokenAccount: tokenVaultAccount,
+          vault: vaultTokenAccount, // Changed from vaultTokenAccount
           userTokenAccount: userTokenAccount,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
