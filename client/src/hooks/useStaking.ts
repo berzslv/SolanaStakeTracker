@@ -126,13 +126,20 @@ export function useStaking() {
       if (!userInfoAccount) return 0;
       
       try {
-        // Try to fetch user info
+        // Try to fetch user info - use lowercase for account name to match IDL
+        console.log('Fetching user info account:', userInfoAccount.toString());
         const userInfo = await program.account.userInfo.fetch(userInfoAccount);
+        console.log('User info account data:', userInfo);
         
-        // Access the stakedAmount field - make sure this matches your IDL
+        // Access the stakedAmount field - make sure this matches your IDL exactly
         // Cast to any to work around TypeScript limitations with Anchor accounts
         const info = userInfo as any;
-        return Number(info.stakedAmount.toString()) / Math.pow(10, DECIMALS);
+        if (info.stakedAmount) {
+          return Number(info.stakedAmount.toString()) / Math.pow(10, DECIMALS);
+        } else {
+          console.log('No staked amount found in user account');
+          return 0;
+        }
       } catch (error) {
         console.error('Error fetching user info:', error);
         // Account likely doesn't exist yet, which is normal for new users
@@ -196,7 +203,7 @@ export function useStaking() {
             owner: new PublicKey(publicKey),
             userInfo: userInfoAccount,
             globalState,
-            systemProgram: anchor.web3.SystemProgram.programId,
+            systemProgram: new PublicKey("11111111111111111111111111111111"),
             rent: anchor.web3.SYSVAR_RENT_PUBKEY
           })
           .rpc();
