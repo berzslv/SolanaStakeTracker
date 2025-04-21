@@ -120,7 +120,10 @@ const SolanaStakingWidget: React.FC = () => {
   };
   
   // Handle max buttons
-  const handleMaxStake = () => setStakeAmount(tokenBalance.toString());
+  const handleMaxStake = () => {
+    console.log("Setting max stake amount:", tokenBalance);
+    setStakeAmount(tokenBalance.toString());
+  };
   const handleMaxUnstake = () => setUnstakeAmount(stakedAmount.toString());
   
   return (
@@ -246,6 +249,13 @@ const SolanaStakingWidget: React.FC = () => {
           </div>
         </CardContent>
         <CardFooter>
+          {/* Debug display */}
+          <div className="text-xs mb-2 text-muted-foreground">
+            Debug: publicKey: {publicKey ? "Yes" : "No"}, 
+            isRegistered: {isRegistered ? "Yes" : "No"}, 
+            stakeAmount: {stakeAmount}, 
+            Valid amount: {stakeAmount && parseFloat(stakeAmount) > 0 ? "Yes" : "No"}
+          </div>
           <Button
             onClick={handleStake}
             disabled={isLoading || isProcessing || !publicKey || !isRegistered || !stakeAmount || parseFloat(stakeAmount) <= 0}

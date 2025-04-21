@@ -173,11 +173,14 @@ export function useStaking() {
     
     setIsLoading(true);
     try {
-      // Get token balance
-      const userATA = await getAssociatedTokenAddress(TOKEN_MINT, publicKey);
+      // Get token balance from the associated token account
+      console.log("Looking for token with mint:", TOKEN_MINT_ADDRESS.toString());
+      const userATA = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
+      console.log("User ATA:", userATA.toString());
       
       try {
         const tokenAccount = await connection.getTokenAccountBalance(userATA);
+        console.log("Token account info:", tokenAccount);
         setTokenBalance(parseFloat(tokenAccount.value.uiAmount?.toString() || "0"));
       } catch (error) {
         console.error("Error fetching token balance:", error);
