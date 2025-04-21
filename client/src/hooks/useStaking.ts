@@ -11,7 +11,7 @@ import {
 } from "@solana/spl-token";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { PROGRAM_ID, TOKEN_MINT_ADDRESS } from "@/utils/constants";
+import { PROGRAM_ID, TOKEN_MINT_ADDRESS, VERIFIED_VAULT_ADDRESS, DECIMALS } from "@/utils/constants";
 import { IDL } from "@/utils/idl";
 import * as anchor from '@project-serum/anchor';
 import { Program } from "@project-serum/anchor";
@@ -21,9 +21,6 @@ import {
   findStakingVault,
   findUserStakeInfoAccount
 } from "@/utils/anchor";
-
-// Import DECIMALS from constants
-import { PROGRAM_ID, TOKEN_MINT_ADDRESS, VERIFIED_VAULT_ADDRESS, DECIMALS } from "@/utils/constants";
 
 // Convert number to BN with proper decimal handling
 const toBN = (amount: number): typeof anchor.BN => {
@@ -537,21 +534,14 @@ export function useStaking() {
       
       console.log("User is registered, proceeding with staking...");
       
-      // Get necessary PDAs - updated for referral staking contract
+      // Get necessary PDAs and accounts
       const [globalStatePDA] = await findVaultPDA(); // This is the GlobalState PDA with "global_state" seed
       const [userInfoPDA] = await findUserInfoPDA(publicKey); // UserInfo PDA with "user_info" seed
       
-      // Use the improved findTokenVaultAccount which now tries to fetch the vault from GlobalState
-      // If it can't fetch it, it falls back to our hardcoded value
+      // CRITICAL: Get the vault token account with proper lookup logic
       const vaultTokenAccount = await findTokenVaultAccount(connection);
       
-      console.log("Debug - Stake accounts:", {
-        globalStatePDA: globalStatePDA.toString(),
-        userInfoPDA: userInfoPDA.toString(),
-        vault: vaultTokenAccount.toString()
-      });
-      
-      // Get user's token account
+      // Get user's token account (ATA)
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
       
       console.log("Staking with accounts:", {
@@ -559,106 +549,117 @@ export function useStaking() {
         globalState: globalStatePDA.toString(),
         userInfo: userInfoPDA.toString(),
         userTokenAccount: userTokenAccount.toString(),
-        vault: vaultTokenAccount.toString()
+        vault: vaultTokenAccount.toString(),
+        amount: amount.toString(),
+        amountWithDecimals: toBN(amount).toString()
       });
       
-      // Import needed for createApproveInstruction
-      const { createApproveInstruction } = await import('@solana/spl-token');
+      // Import SPL Token instructions directly in stake function 
+      const { createApproveInstruction, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
       
-      // Create stake instruction
-      const stakeIx = await program.methods
+      // Create a transaction object
+      const transaction = new Transaction();
+      
+      // First, add an explicit approval instruction for the tokens
+      const approveInstruction = createApproveInstruction(
+        userTokenAccount,            // source account (user's token account)
+        vaultTokenAccount,           // delegate account (program's vault)
+        publicKey,                   // owner of source account
+        toBN(amount).toNumber()      // amount to delegate
+      );
+      
+      // Add the approval to the transaction
+      transaction.add(approveInstruction);
+      
+      // Then add the stake instruction
+      const stakeInstruction = await program.methods
         .stake(toBN(amount))
         .accounts({
-          owner: publicKey, // Changed from user to owner
-          globalState: globalStatePDA, // Added globalState
+          owner: publicKey,
+          globalState: globalStatePDA,
           userInfo: userInfoPDA,
           userTokenAccount: userTokenAccount,
-          vault: vaultTokenAccount, // The token vault (ATA of global state)
+          vault: vaultTokenAccount,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .instruction();
-        
-      // Create token approval instruction - this is critical
-      // This approves the program to transfer tokens from your account
-      const approveIx = createApproveInstruction(
-        userTokenAccount,   // source
-        vaultTokenAccount,  // delegate
-        publicKey,          // owner
-        toBN(amount).toNumber()    // amount
-      );
       
-      // Create transaction with both instructions
-      const tx = new Transaction().add(approveIx, stakeIx);
+      // Add the stake instruction to the transaction
+      transaction.add(stakeInstruction);
       
-      // Get fresh blockhash
+      // Set the transaction fee payer
+      transaction.feePayer = publicKey;
+      
+      // Get a recent blockhash to include in the transaction
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
       
-      // Send transaction with better error handling
-      let signature = null;
+      // Send the transaction
+      console.log("Sending transaction with token approval + stake instructions");
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: true  // Skip preflight to avoid simulation errors
+      });
       
+      console.log("Transaction sent with signature:", signature);
+      
+      // Wait for confirmation
       try {
-        // Use improved transaction handling with skipPreflight
-        signature = await sendTransaction(tx, connection, {
-          skipPreflight: true // Skip preflight to avoid some common issues in the Replit environment
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
         });
         
-        console.log("Staking transaction sent:", signature);
-        
-        // Wait for confirmation with proper format
-        if (signature) {
-          await connection.confirmTransaction({
-            signature,
-            blockhash,
-            lastValidBlockHeight
-          });
-          
-          console.log("Staking transaction confirmed");
-        }
-        
-        toast({
-          title: "Staking successful",
-          description: `You've staked ${amount} HATM tokens`
-        });
-        
-        // Update the last update time to prevent excessive refreshes
-        setLastUpdateTime(Date.now());
-        
-        // Refresh balances
-        await refreshBalances();
-        
-        return signature;
-      } catch (txErr: any) {
-        console.error("Transaction error:", txErr);
-        
-        // Special handling for WalletSendTransactionError
-        if (txErr?.name === 'WalletSendTransactionError') {
+        if (confirmation.value.err) {
+          console.error("Transaction confirmed but has errors:", confirmation.value.err);
           toast({
-            title: "Wallet Error",
-            description: "Please check your wallet connection and try again. Make sure to approve the transaction in your wallet extension.",
+            title: "Staking error",
+            description: "Transaction confirmed but encountered errors. Please check your balance.",
             variant: "destructive"
           });
         } else {
+          console.log("Transaction confirmed successfully");
           toast({
-            title: "Staking failed",
-            description: txErr?.message || "There was an error staking your tokens",
-            variant: "destructive"
+            title: "Staking successful",
+            description: `You've staked ${amount} HATM tokens`
           });
+          
+          // Update the last update time to prevent excessive refreshes
+          setLastUpdateTime(Date.now());
+          
+          // Refresh balances
+          await refreshBalances();
         }
-        
-        throw txErr;
-      }
-    } catch (error: any) {
-      console.error("Stake error:", error);
-      if (!error?.name?.includes('WalletSendTransactionError')) {
+      } catch (confirmError) {
+        console.error("Confirmation error:", confirmError);
         toast({
-          title: "Staking failed",
-          description: error?.message || "There was an error staking your tokens",
+          title: "Confirmation error",
+          description: "We couldn't confirm if your transaction succeeded. Please check your balance and try again if needed.",
           variant: "destructive"
         });
       }
+      
+      return signature;
+    } catch (error: any) {
+      console.error("Stake error:", error);
+      
+      if (error?.name === 'WalletSendTransactionError') {
+        // User rejected the transaction in their wallet
+        toast({
+          title: "Transaction rejected",
+          description: "You declined the transaction in your wallet.",
+          variant: "destructive"
+        });
+      } else {
+        // Other errors
+        toast({
+          title: "Staking failed",
+          description: error?.message || "There was an error staking your tokens. Please try again.",
+          variant: "destructive"
+        });
+      }
+      
       throw error;
     } finally {
       setIsProcessing(false);
@@ -772,11 +773,8 @@ export function useStaking() {
         userTokenAccount: userTokenAccount.toString()
       });
       
-      // Import needed for createApproveInstruction
-      const { createApproveInstruction } = await import('@solana/spl-token');
-      
       // Create unstake instruction
-      const unstakeIx = await program.methods
+      const tx = await program.methods
         .unstake(toBN(amount))
         .accounts({
           owner: publicKey, // Changed from user to owner
@@ -787,11 +785,9 @@ export function useStaking() {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
-        .instruction();
-        
+        .transaction();
+      
       // For unstaking, we don't need an approval since tokens are coming back to us
-      // But we create a transaction with our unstake instruction
-      const tx = new Transaction().add(unstakeIx);
       
       // Get fresh blockhash
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();

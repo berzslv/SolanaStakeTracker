@@ -105,14 +105,58 @@ export const getGlobalState = async (connection: Connection): Promise<{ vault: P
 };
 
 // Find the token vault account for the referral staking program
-export const findTokenVaultAccount = async () => {
+// Updated with more robust determination of the vault token account
+export const findTokenVaultAccount = async (connection: Connection) => {
   try {
-    // Use the verified vault address from constants.ts
-    console.log("Using verified vault address:", VERIFIED_VAULT_ADDRESS.toString());
+    // First, get the GlobalState PDA 
+    const [globalStatePDA] = await PublicKey.findProgramAddress(
+      [Buffer.from("global_state")],
+      new PublicKey(PROGRAM_ID)
+    );
+    
+    console.log("Looking up GlobalState PDA:", globalStatePDA.toString());
+    
+    // Try to get the actual account data from the blockchain
+    const accountInfo = await connection.getAccountInfo(globalStatePDA);
+    
+    if (accountInfo) {
+      // GlobalState exists on chain, we can try to deserialize it
+      try {
+        // Create a temporary read-only provider since we might not have a connected wallet
+        const readOnlyProvider = new anchor.AnchorProvider(
+          connection,
+          // Use a dummy wallet that can't sign
+          {
+            publicKey: new PublicKey(PROGRAM_ID),
+            signTransaction: () => Promise.reject("Read-only provider cannot sign"),
+            signAllTransactions: () => Promise.reject("Read-only provider cannot sign"),
+          } as any,
+          { preflightCommitment: 'processed' }
+        );
+        
+        // Set as default provider for this operation
+        anchor.setProvider(readOnlyProvider);
+        
+        const program = new anchor.Program(StakingIDL as any, PROGRAM_ID, readOnlyProvider);
+        const globalState = await program.account.globalState.fetch(globalStatePDA);
+        // @ts-ignore - TypeScript cannot validate the fields properly with the IDL format we have
+        if (globalState.vault) {
+          // @ts-ignore
+          console.log("Found vault address from GlobalState:", globalState.vault.toString());
+          // @ts-ignore
+          return globalState.vault;
+        }
+      } catch (e) {
+        console.warn("Could not parse GlobalState account:", e);
+      }
+    }
+    
+    // As a fallback, use the verified vault address from constants
+    console.log("Using verified vault address from constants:", VERIFIED_VAULT_ADDRESS.toString());
     return VERIFIED_VAULT_ADDRESS;
   } catch (error) {
-    console.error("Error getting vault address:", error);
-    // Return the constant anyway (this catch is mostly for TypeScript errors)
+    console.error("Error determining vault address:", error);
+    // In case of any errors, use the verified address from constants
     return VERIFIED_VAULT_ADDRESS;
   }
 };
