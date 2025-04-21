@@ -61,27 +61,33 @@ export function useStaking() {
   const findUserInfoAccount = useCallback(() => {
     if (!publicKey) return null;
     
+    // Based on IDL it's "userInfo" 
     const [userInfoPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('user'), new PublicKey(publicKey).toBuffer()],
       new PublicKey(PROGRAM_ID)
     );
+    console.log('User info PDA:', userInfoPDA.toString());
     return userInfoPDA;
   }, [publicKey]);
   
-  const findGlobalStateAccount = useCallback(() => {
-    const [globalStatePDA] = PublicKey.findProgramAddressSync(
-      [Buffer.from('global')],
-      new PublicKey(PROGRAM_ID)
-    );
-    return globalStatePDA;
-  }, []);
-  
+  // This corresponds to "vault" in the IDL
   const findVaultAccount = useCallback(() => {
     const [vaultPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('vault')],
       new PublicKey(PROGRAM_ID)
     );
+    console.log('Vault PDA:', vaultPDA.toString());
     return vaultPDA;
+  }, []);
+  
+  // This corresponds to "vaultAuthority" in the IDL
+  const findVaultAuthorityAccount = useCallback(() => {
+    const [vaultAuthorityPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from('vault_authority')],
+      new PublicKey(PROGRAM_ID)
+    );
+    console.log('Vault Authority PDA:', vaultAuthorityPDA.toString());
+    return vaultAuthorityPDA;
   }, []);
   
   const findVaultTokenAccount = useCallback(() => {
@@ -126,16 +132,16 @@ export function useStaking() {
       if (!userInfoAccount) return 0;
       
       try {
-        // Try to fetch user info - use lowercase for account name to match IDL
+        // Try to fetch user info - use the correct account name from the IDL
         console.log('Fetching user info account:', userInfoAccount.toString());
-        const userInfo = await program.account.userInfo.fetch(userInfoAccount);
+        const userInfo = await program.account.userStakeInfo.fetch(userInfoAccount);
         console.log('User info account data:', userInfo);
         
-        // Access the stakedAmount field - make sure this matches your IDL exactly
+        // Access the field according to the IDL (amountStaked instead of stakedAmount)
         // Cast to any to work around TypeScript limitations with Anchor accounts
         const info = userInfo as any;
-        if (info.stakedAmount) {
-          return Number(info.stakedAmount.toString()) / Math.pow(10, DECIMALS);
+        if (info.amountStaked) {
+          return Number(info.amountStaked.toString()) / Math.pow(10, DECIMALS);
         } else {
           console.log('No staked amount found in user account');
           return 0;
@@ -180,15 +186,16 @@ export function useStaking() {
       if (!program) return;
       
       const userInfoAccount = findUserInfoAccount();
-      const globalState = findGlobalStateAccount();
+      const vaultAccount = findVaultAccount();
       
-      if (!userInfoAccount || !globalState) {
+      if (!userInfoAccount || !vaultAccount) {
         throw new Error('Failed to derive program accounts');
       }
       
       // Check if the user account already exists
       try {
-        await program.account.userInfo.fetch(userInfoAccount);
+        // Should match the account name in the IDL (userStakeInfo)
+        await program.account.userStakeInfo.fetch(userInfoAccount);
         // If it exists, return
         console.log('User already registered');
         return;
@@ -196,14 +203,22 @@ export function useStaking() {
         // If it doesn't exist, we need to create it
         console.log('User account does not exist, creating...');
         
-        // Register user with no referrer (null)
+        // Register user based on IDL
+        console.log('Registering user with accounts:', {
+          user: new PublicKey(publicKey),
+          userInfo: userInfoAccount,
+          vault: vaultAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY
+        });
+        
         const tx = await program.methods
-          .registerUser(null)
+          .registerUser()
           .accounts({
-            owner: new PublicKey(publicKey),
+            user: new PublicKey(publicKey),
             userInfo: userInfoAccount,
-            globalState,
-            systemProgram: new PublicKey("11111111111111111111111111111111"),
+            vault: vaultAccount,
+            systemProgram: anchor.web3.SystemProgram.programId,
             rent: anchor.web3.SYSVAR_RENT_PUBKEY
           })
           .rpc();
@@ -214,7 +229,7 @@ export function useStaking() {
       console.error('Error registering user:', error);
       throw error;
     }
-  }, [publicKey, getProgram, findUserInfoAccount, findGlobalStateAccount]);
+  }, [publicKey, getProgram, findUserInfoAccount, findVaultAccount]);
 
   // Stake tokens
   const stake = useCallback(async (amount: number) => {
@@ -244,10 +259,9 @@ export function useStaking() {
       if (!program) throw new Error('Failed to get program');
       
       const userInfoAccount = findUserInfoAccount();
-      const globalState = findGlobalStateAccount();
-      const vault = findVaultAccount();
+      const vaultAccount = findVaultAccount();
       
-      if (!userInfoAccount || !globalState || !vault) {
+      if (!userInfoAccount || !vaultAccount) {
         throw new Error('Failed to derive program accounts');
       }
       
@@ -257,6 +271,14 @@ export function useStaking() {
         tokenMint,
         new PublicKey(publicKey)
       );
+      
+      // Get the vault token account (tokenVault in IDL)
+      // In this case we need to use findVaultTokenAccount
+      const vaultTokenAccount = findVaultTokenAccount();
+      
+      if (!vaultTokenAccount) {
+        throw new Error('Failed to derive vault token account');
+      }
       
       // Convert amount to lamports
       const bnAmount = new BN(amount * Math.pow(10, DECIMALS));
@@ -268,16 +290,28 @@ export function useStaking() {
         signature: null
       });
       
+      // Debug log accounts we'll use
+      console.log('Stake accounts:', {
+        user: new PublicKey(publicKey),
+        userInfo: userInfoAccount,
+        vault: vaultAccount,
+        userTokenAccount,
+        vaultTokenAccount,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId
+      });
+      
       // This matches the IDL structure exactly
       const tx = await program.methods
         .stake(bnAmount)
         .accounts({
-          owner: new PublicKey(publicKey),
-          globalState,
+          user: new PublicKey(publicKey),
           userInfo: userInfoAccount,
-          vault,
-          userTokenAccount,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
+          vault: vaultAccount,
+          userTokenAccount: userTokenAccount,
+          vaultTokenAccount: vaultTokenAccount,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId
         })
         .rpc();
         
@@ -335,8 +369,8 @@ export function useStaking() {
     connected, 
     getProgram, 
     findUserInfoAccount, 
-    findGlobalStateAccount,
-    findVaultAccount, 
+    findVaultAccount,
+    findVaultTokenAccount,
     ensureUserRegistered, 
     refreshBalances, 
     setTransactionStatus, 
@@ -368,10 +402,10 @@ export function useStaking() {
       if (!program) throw new Error('Failed to get program');
       
       const userInfoAccount = findUserInfoAccount();
-      const globalState = findGlobalStateAccount();
-      const vault = findVaultAccount();
+      const vaultAccount = findVaultAccount();
+      const vaultAuthorityAccount = findVaultAuthorityAccount();
       
-      if (!userInfoAccount || !globalState || !vault) {
+      if (!userInfoAccount || !vaultAccount || !vaultAuthorityAccount) {
         throw new Error('Failed to derive program accounts');
       }
       
@@ -381,6 +415,12 @@ export function useStaking() {
         tokenMint,
         new PublicKey(publicKey)
       );
+      
+      // Get the vault token account
+      const vaultTokenAccount = findVaultTokenAccount();
+      if (!vaultTokenAccount) {
+        throw new Error('Failed to derive vault token account');
+      }
       
       // Convert amount to lamports
       const bnAmount = new BN(amount * Math.pow(10, DECIMALS));
@@ -392,16 +432,30 @@ export function useStaking() {
         signature: null
       });
       
+      // Debug log accounts we'll use
+      console.log('Unstake accounts:', {
+        user: new PublicKey(publicKey),
+        userInfo: userInfoAccount,
+        vault: vaultAccount,
+        vaultAuthority: vaultAuthorityAccount,
+        vaultTokenAccount,
+        userTokenAccount,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId
+      });
+      
       // This matches the IDL structure exactly
       const tx = await program.methods
         .unstake(bnAmount)
         .accounts({
-          owner: new PublicKey(publicKey),
-          globalState,
+          user: new PublicKey(publicKey),
           userInfo: userInfoAccount,
-          vault,
+          vault: vaultAccount,
+          vaultAuthority: vaultAuthorityAccount,
+          vaultTokenAccount,
           userTokenAccount,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId
         })
         .rpc();
         
@@ -459,8 +513,9 @@ export function useStaking() {
     connected, 
     getProgram, 
     findUserInfoAccount,
-    findGlobalStateAccount,
     findVaultAccount,
+    findVaultAuthorityAccount,
+    findVaultTokenAccount,
     refreshBalances, 
     setTransactionStatus, 
     toast
