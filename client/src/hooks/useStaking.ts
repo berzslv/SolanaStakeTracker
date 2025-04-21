@@ -142,8 +142,8 @@ export function useStaking() {
   };
 
   // Register user with the staking program
-  const registerUser = async () => {
-    if (!publicKey) return;
+  const registerUser = async (): Promise<string | undefined> => {
+    if (!publicKey) return undefined;
     
     console.log("Starting registration process...");
     console.log("Public Key:", publicKey.toString());
@@ -151,9 +151,27 @@ export function useStaking() {
     const program = getProgram();
     if (!program) {
       console.error("Failed to create Anchor program");
-      return;
+      return undefined;
     }
+    
     console.log("Program ID:", program.programId.toString());
+    
+    // First, check if the user is already registered to avoid redundant registration
+    try {
+      const isAlreadyRegistered = await checkUserRegistration();
+      if (isAlreadyRegistered) {
+        console.log("User is already registered, no need to register again");
+        toast({
+          title: "Already registered",
+          description: "You're already registered with the staking program"
+        });
+        setIsRegistered(true);
+        return "already-registered";
+      }
+    } catch (checkError) {
+      console.error("Error checking registration status:", checkError);
+      // Continue with registration attempt even if check failed
+    }
     
     try {
       setIsProcessing(true);
@@ -178,12 +196,10 @@ export function useStaking() {
         })
         .transaction();
       
-      // Add a bit more lamports for the fee
-      tx.feePayer = publicKey;
-      
-      // Get the recent blockhash for transaction freshness
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      // Get a fresh blockhash for the transaction
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
       
       console.log("Transaction built, sending with params:", {
         accounts: {
@@ -199,21 +215,19 @@ export function useStaking() {
       
       const handleTransaction = async () => {
         try {
-          // Prepare a more detailed error message for the user
           const sigResult = await sendTransaction(tx, connection, {
             skipPreflight: true  // Skip preflight to avoid some common issues
           });
-          console.log("Transaction sent with signature:", sigResult);
+          console.log("Registration transaction sent with signature:", sigResult);
           return sigResult;
         } catch (err: any) {
           console.error("Send transaction attempt failed:", err);
           
           // Handle different error types
           if (err.name === 'WalletSendTransactionError') {
-            // This is likely a Phantom wallet issue in the Replit environment
             toast({
               title: "Wallet Transaction Error",
-              description: "Please try again with your Phantom wallet. You may need to approve the transaction in your wallet extension.",
+              description: "Please try again with your Phantom wallet. Make sure to approve the transaction in your wallet extension.",
               variant: "destructive"
             });
           }
@@ -229,28 +243,51 @@ export function useStaking() {
         } catch (err) {
           retries--;
           if (retries === 0) throw err;
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5s between retries
         }
       }
       
       // Wait for confirmation
-      console.log("Waiting for confirmation...");
+      console.log("Waiting for registration confirmation...");
       if (signature) {
-        const confirmation = await connection.confirmTransaction({
-          signature,
-          blockhash: tx.recentBlockhash!, // Non-null assertion for TypeScript
-          lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
-        });
-        console.log("Transaction confirmed:", confirmation);
+        try {
+          const confirmation = await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          });
+          
+          console.log("Registration transaction confirmed:", confirmation);
+          
+          // Verify the registration was successful
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5s for chain state to update
+          const verifyRegistration = await checkUserRegistration();
+          
+          if (verifyRegistration) {
+            toast({
+              title: "Registration successful",
+              description: "You're now registered with the staking program"
+            });
+            
+            setIsRegistered(true);
+          } else {
+            console.warn("Registration transaction succeeded but account doesn't appear to be registered yet, it may take some time to propagate");
+            toast({
+              title: "Registration pending",
+              description: "Your registration was submitted. Please wait a moment and try refreshing."
+            });
+          }
+        } catch (confirmErr) {
+          console.error("Error confirming registration transaction:", confirmErr);
+          toast({
+            title: "Registration status unknown",
+            description: "We couldn't confirm if your registration was successful. Please check your wallet and try refreshing.",
+            variant: "destructive"
+          });
+        }
       }
       
-      toast({
-        title: "Registration successful",
-        description: "You're now registered with the staking program"
-      });
-      
-      setIsRegistered(true);
-      return signature;
+      return signature || undefined;
     } catch (error) {
       console.error("Registration error:", error);
       
@@ -268,7 +305,7 @@ export function useStaking() {
         // Show more useful error message to user
         toast({
           title: "Registration failed",
-          description: `Error: ${error.message.slice(0, 100)}...`,
+          description: `Error: ${error.message.slice(0, 100)}${error.message.length > 100 ? '...' : ''}`,
           variant: "destructive"
         });
       } else {
@@ -400,13 +437,62 @@ export function useStaking() {
     try {
       setIsProcessing(true);
       
-      // Check if user is registered
-      const isUserRegistered = await checkUserRegistration();
+      // IMPORTANT: Check if user is registered - use the more reliable API
+      let isUserRegistered = await checkUserRegistration();
+      console.log("Initial user registration check:", isUserRegistered);
       
-      // Register if not already registered
+      // If not registered, we need to register the user first in a SEPARATE transaction
       if (!isUserRegistered) {
-        await registerUser();
+        console.log("User not registered, starting registration...");
+        try {
+          // Run the registration in a separate transaction and wait for confirmation
+          const regSignature = await registerUser();
+          console.log("Registration transaction sent:", regSignature);
+          
+          if (regSignature) {
+            // Wait to make sure registration is processed
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Check again to confirm registration worked
+            isUserRegistered = await checkUserRegistration();
+            console.log("Registration check after registration attempt:", isUserRegistered);
+            
+            if (!isUserRegistered) {
+              toast({
+                title: "Registration failed",
+                description: "Unable to register with the staking program. Please try again.",
+                variant: "destructive"
+              });
+              return;
+            } else {
+              toast({
+                title: "Registration successful",
+                description: "You're now registered with the staking program."
+              });
+            }
+          }
+        } catch (regError) {
+          console.error("Registration error:", regError);
+          toast({
+            title: "Registration failed",
+            description: "Unable to register with the staking program. Please try again.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
+      
+      // Only proceed with staking if user is now registered
+      if (!isUserRegistered) {
+        toast({
+          title: "Staking failed",
+          description: "You must be registered to stake. Please try registering manually.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log("User is registered, proceeding with staking...");
       
       // Get necessary PDAs
       const [vaultPDA] = await findVaultPDA();
@@ -415,6 +501,14 @@ export function useStaking() {
       
       // Get user's token account
       const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT_ADDRESS, publicKey);
+      
+      console.log("Staking with accounts:", {
+        user: publicKey.toString(),
+        userInfo: userInfoPDA.toString(),
+        vault: vaultPDA.toString(),
+        userTokenAccount: userTokenAccount.toString(),
+        vaultTokenAccount: tokenVaultAccount.toString()
+      });
       
       // Create stake instruction
       const tx = await program.methods
@@ -444,6 +538,8 @@ export function useStaking() {
           skipPreflight: true // Skip preflight to avoid some common issues in the Replit environment
         });
         
+        console.log("Staking transaction sent:", signature);
+        
         // Wait for confirmation with proper format
         if (signature) {
           await connection.confirmTransaction({
@@ -451,6 +547,8 @@ export function useStaking() {
             blockhash,
             lastValidBlockHeight
           });
+          
+          console.log("Staking transaction confirmed");
         }
         
         toast({
