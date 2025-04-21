@@ -1,5 +1,12 @@
 import * as anchor from '@project-serum/anchor';
-import { PublicKey, Connection } from '@solana/web3.js';
+import { 
+  PublicKey, 
+  Connection, 
+  TransactionInstruction, 
+  SystemProgram, 
+  SYSVAR_RENT_PUBKEY 
+} from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { BN } from 'bn.js';
 import { PROGRAM_ID, TOKEN_MINT_ADDRESS } from './constants';
 
@@ -100,7 +107,7 @@ const DECIMALS = 9;
 // Find the staking vault PDA
 export const findStakingVault = async () => {
   const [vaultPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('staking_vault')],
+    [Buffer.from('global')],
     new PublicKey(PROGRAM_ID)
   );
   return vaultPDA;
@@ -109,7 +116,7 @@ export const findStakingVault = async () => {
 // Find the vault authority PDA
 export const findVaultAuthority = async () => {
   const [vaultAuthorityPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('vault_authority')],
+    [Buffer.from('vault')],
     new PublicKey(PROGRAM_ID)
   );
   return vaultAuthorityPDA;
@@ -118,19 +125,19 @@ export const findVaultAuthority = async () => {
 // Find the user's stake info account
 export const findUserStakeInfoAccount = (walletPublicKey: PublicKey) => {
   const [userInfoPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('user_stake_info'), walletPublicKey.toBuffer()],
+    [Buffer.from('user'), walletPublicKey.toBuffer()],
     new PublicKey(PROGRAM_ID)
   );
   return userInfoPDA;
 };
 
-// Find the token vault account
+// Find the token vault account - this is the program's token account
 export const findTokenVaultAccount = async () => {
   const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
-  const vaultAuthority = await findVaultAuthority();
   
+  // The vault token account is derived from the program ID and token mint
   const [tokenVaultPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token_vault'), tokenMint.toBuffer(), vaultAuthority.toBuffer()],
+    [Buffer.from('vault_token_account'), tokenMint.toBuffer()],
     new PublicKey(PROGRAM_ID)
   );
   return tokenVaultPDA;
