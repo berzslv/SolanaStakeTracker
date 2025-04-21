@@ -110,25 +110,19 @@ export const getGlobalState = async (connection: Connection): Promise<{ vault: P
 // Find the token vault account for the referral staking program
 export const findTokenVaultAccount = async (connection?: Connection) => {
   try {
-    // Try to get the vault from GlobalState first
-    if (connection) {
-      const globalState = await getGlobalState(connection);
-      if (globalState && globalState.vault) {
-        console.log("Found vault address from GlobalState:", globalState.vault.toString());
-        return globalState.vault;
-      }
-    }
+    // Analyzing the successful transaction: 62gGMXiZtgY8wmZkpyPyT8PCPeKQH3dCMQDA9zFkjPfRZu2rochs8RWeuAFf8eNSZkzf5uVMSDB4gQ6NTfsfYBtQ
+    // We need to use a specific vault address
     
-    // Fallback to hardcoded value if fetching from GlobalState fails
-    // This value comes from a verified deployed contract
+    // Direct vault address known to work with the deployed program
+    // This value was obtained from a successful staking transaction
     const vaultAddress = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
-    console.log("Using fallback vault address:", vaultAddress.toString());
+    console.log("Using verified vault address:", vaultAddress.toString());
     
     return vaultAddress;
   } catch (error) {
     console.error("Error finding token vault account:", error);
     
-    // Last resort fallback
+    // Last resort fallback - use the same known working address
     const vaultAddress = new PublicKey("C9kigNZXbULbg1JiU9Fp5gn8Z5LDL3XNj9hSGpXFZbJY");
     console.log("Using emergency fallback vault address after error:", vaultAddress.toString());
     return vaultAddress;

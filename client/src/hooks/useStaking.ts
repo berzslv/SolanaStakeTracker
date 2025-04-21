@@ -381,6 +381,16 @@ export function useStaking() {
             // Wait before making another RPC call
             await new Promise(resolve => setTimeout(resolve, delayBetweenRequests));
             
+            // First check if the account exists on-chain
+            const accountInfo = await connection.getAccountInfo(userInfoPDA);
+            console.log("User info account exists:", !!accountInfo);
+            
+            if (!accountInfo) {
+              console.log("User hasn't staked yet, account doesn't exist:", userInfoPDA.toString());
+              setStakedAmount(0);
+              return;
+            }
+            
             // Get UserInfo account with retry logic - updated for referral_staking contract
             const fetchUserInfo = async (retry = true) => {
               try {
@@ -411,10 +421,28 @@ export function useStaking() {
             if (userInfo) {
               // Access the correct field name - stakedAmount not amountStaked
               // @ts-ignore - Handle potential type issues with Anchor
-              setStakedAmount(fromBN(userInfo.stakedAmount));
+              console.log("User info data:", {
+                // @ts-ignore
+                owner: userInfo.owner?.toString(),
+                // @ts-ignore
+                stakedAmount: userInfo.stakedAmount?.toString(),
+                // @ts-ignore
+                rewards: userInfo.rewards?.toString()
+              });
+              
+              // @ts-ignore - Handle potential type issues with Anchor
+              if (userInfo.stakedAmount) {
+                // @ts-ignore
+                setStakedAmount(fromBN(userInfo.stakedAmount));
+              } else {
+                console.log("Staked amount is missing or invalid");
+                setStakedAmount(0);
+              }
               
               // In the future we could display referral info and rewards too
+              // @ts-ignore
               console.log("User referral count:", userInfo.referralCount?.toNumber());
+              // @ts-ignore
               console.log("User rewards:", fromBN(userInfo.rewards));
             } else {
               // This is a normal case for non-stakers, not an error
@@ -619,6 +647,59 @@ export function useStaking() {
     }
   };
 
+  // Helper function to check if userInfo account exists and verify staking status
+  const verifyUserStakeAccount = async (): Promise<boolean> => {
+    if (!publicKey) return false;
+    
+    const program = getProgram();
+    if (!program) return false;
+    
+    try {
+      // Get the PDA for this user
+      const [userInfoPDA] = await findUserInfoPDA(publicKey);
+      
+      // Log the account we're checking
+      console.log("Checking user info account:", userInfoPDA.toString());
+      
+      // Check if the account exists on-chain
+      const accountInfo = await connection.getAccountInfo(userInfoPDA);
+      console.log("Account info exists:", !!accountInfo);
+      
+      if (!accountInfo) {
+        console.log("User info account does not exist on chain");
+        return false;
+      }
+      
+      try {
+        // Try to deserialize the account
+        const userInfo = await program.account.userInfo.fetch(userInfoPDA);
+        // @ts-ignore - UserInfo structure fields
+        console.log("User info data:", {
+          // @ts-ignore
+          owner: userInfo.owner?.toString(),
+          // @ts-ignore
+          stakedAmount: userInfo.stakedAmount?.toString(),
+          // @ts-ignore
+          rewards: userInfo.rewards?.toString()
+        });
+        
+        // @ts-ignore - Check if stakedAmount > 0
+        if (userInfo.stakedAmount && userInfo.stakedAmount.toNumber() > 0) {
+          return true;
+        } else {
+          console.log("User has no staked tokens according to contract");
+          return false;
+        }
+      } catch (err) {
+        console.error("Error deserializing user info account:", err);
+        return false;
+      }
+    } catch (err) {
+      console.error("Error checking user stake account:", err);
+      return false;
+    }
+  };
+  
   // Unstake tokens
   const unstake = async (amount: number) => {
     if (!publicKey) return;
@@ -629,7 +710,21 @@ export function useStaking() {
     try {
       setIsProcessing(true);
       
-      // IMPORTANT: First, check if the user has enough staked tokens
+      // First, explicitly verify that the user's stake account exists and has tokens
+      console.log("Verifying user stake account before unstaking...");
+      const hasStakeAccount = await verifyUserStakeAccount();
+      
+      if (!hasStakeAccount) {
+        toast({
+          title: "Cannot unstake tokens",
+          description: "You don't have any staked tokens or your staking account hasn't been initialized. Please stake some tokens first.",
+          variant: "destructive"
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
+      // IMPORTANT: Check if the user has enough staked tokens
       // This prevents the "InsufficientStake" error (0x1770)
       if (amount > stakedAmount) {
         toast({
@@ -637,6 +732,7 @@ export function useStaking() {
           description: `You only have ${stakedAmount} HATM tokens staked. Cannot unstake ${amount} tokens.`,
           variant: "destructive"
         });
+        setIsProcessing(false);
         return;
       }
       
