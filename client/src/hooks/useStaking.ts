@@ -120,16 +120,27 @@ export function useStaking() {
   const registerUser = async () => {
     if (!publicKey) return;
     
+    console.log("Starting registration process...");
+    console.log("Public Key:", publicKey.toString());
+    
     const program = getProgram();
-    if (!program) return;
+    if (!program) {
+      console.error("Failed to create Anchor program");
+      return;
+    }
+    console.log("Program ID:", program.programId.toString());
     
     try {
       setIsProcessing(true);
       
       const [vaultPDA] = await findVaultPDA();
-      const [userInfoPDA] = await findUserInfoPDA(publicKey);
+      console.log("Vault PDA:", vaultPDA.toString());
       
-      // Create instruction to register user
+      const [userInfoPDA] = await findUserInfoPDA(publicKey);
+      console.log("User Info PDA:", userInfoPDA.toString());
+      
+      console.log("Building transaction...");
+      // Create instruction to register user with detailed logging
       const tx = await program.methods
         .registerUser() // No arguments according to IDL
         .accounts({
@@ -141,11 +152,15 @@ export function useStaking() {
         })
         .transaction();
       
+      console.log("Transaction built, sending...");
       // Send transaction
       const signature = await sendTransaction(tx, connection);
+      console.log("Transaction sent with signature:", signature);
       
       // Wait for confirmation
-      await connection.confirmTransaction(signature, "confirmed");
+      console.log("Waiting for confirmation...");
+      const confirmation = await connection.confirmTransaction(signature, "confirmed");
+      console.log("Transaction confirmed:", confirmation);
       
       toast({
         title: "Registration successful",
@@ -156,11 +171,32 @@ export function useStaking() {
       return signature;
     } catch (error) {
       console.error("Registration error:", error);
-      toast({
-        title: "Registration failed",
-        description: "There was an error registering with the staking program",
-        variant: "destructive"
-      });
+      
+      // More detailed error logging
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        
+        // Get any specific Anchor error info
+        if ('error' in error && error.error) {
+          console.error("Anchor error info:", error.error);
+        }
+        
+        // Show more useful error message to user
+        toast({
+          title: "Registration failed",
+          description: `Error: ${error.message.slice(0, 100)}...`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Registration failed",
+          description: "There was an unexpected error registering with the staking program",
+          variant: "destructive"
+        });
+      }
+      
       throw error;
     } finally {
       setIsProcessing(false);

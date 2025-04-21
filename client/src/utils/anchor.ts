@@ -104,30 +104,33 @@ export const StakingIDL = {
 // DECIMAL precision for token amounts
 const DECIMALS = 9;
 
-// Find the staking vault PDA
+// Find the staking vault PDA (global state)
 export const findStakingVault = async () => {
   const [vaultPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global')],
+    [Buffer.from('global_state')],
     new PublicKey(PROGRAM_ID)
   );
+  console.log("Generated vault PDA (global_state):", vaultPDA.toString());
   return vaultPDA;
 };
 
 // Find the vault authority PDA
 export const findVaultAuthority = async () => {
   const [vaultAuthorityPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('vault')],
+    [Buffer.from('global_state')],
     new PublicKey(PROGRAM_ID)
   );
+  console.log("Generated vault authority PDA:", vaultAuthorityPDA.toString());
   return vaultAuthorityPDA;
 };
 
 // Find the user's stake info account
 export const findUserStakeInfoAccount = (walletPublicKey: PublicKey) => {
   const [userInfoPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from('user'), walletPublicKey.toBuffer()],
+    [Buffer.from('user_info'), walletPublicKey.toBuffer()],
     new PublicKey(PROGRAM_ID)
   );
+  console.log("Generated user info PDA for:", walletPublicKey.toString(), "=", userInfoPDA.toString());
   return userInfoPDA;
 };
 
