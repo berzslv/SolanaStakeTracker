@@ -15,6 +15,12 @@ import { PROGRAM_ID, TOKEN_MINT_ADDRESS } from "@/utils/constants";
 import { IDL } from "@/utils/idl";
 import * as anchor from '@project-serum/anchor';
 import { Program } from "@project-serum/anchor";
+import { 
+  findTokenVaultAccount, 
+  getUserStakeInfo,
+  findStakingVault,
+  findUserStakeInfoAccount
+} from "@/utils/anchor";
 
 // Convert number to BN with proper decimal handling
 const toBN = (amount: number): typeof anchor.BN => {

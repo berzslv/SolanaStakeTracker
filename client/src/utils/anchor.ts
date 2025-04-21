@@ -6,7 +6,7 @@ import {
   SystemProgram, 
   SYSVAR_RENT_PUBKEY 
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { BN } from 'bn.js';
 import { PROGRAM_ID, TOKEN_MINT_ADDRESS } from './constants';
 
@@ -50,16 +50,21 @@ export const findUserStakeInfoAccount = (walletPublicKey: PublicKey) => {
 export const findTokenVaultAccount = async () => {
   try {
     // First, get the GlobalState PDA (this is the "vault" in our code)
-    const globalStatePDA = await findStakingVault();
+    const [globalStatePDA] = await PublicKey.findProgramAddressSync(
+      [Buffer.from('global_state')],
+      new PublicKey(PROGRAM_ID)
+    );
     const tokenMint = new PublicKey(TOKEN_MINT_ADDRESS);
     
-    // In the referral_staking contract, the token vault is an Associated Token Account for the GlobalState
-    // We're going to use the Associated Token Account for the global state PDA
-    const tokenVaultPDA = await anchor.utils.token.associatedAddress({
-      mint: tokenMint,
-      owner: globalStatePDA
-    });
+    // In the referral_staking contract, the vault parameter is the token vault account that's owned by the vault authority
+    // Get the ATA for global state PDA
+    const tokenVaultPDA = await getAssociatedTokenAddress(
+      tokenMint,
+      globalStatePDA,
+      true // allowOwnerOffCurve - needed for PDAs
+    );
     
+    console.log("GlobalState PDA:", globalStatePDA.toString());
     console.log("Generated token vault PDA:", tokenVaultPDA.toString());
     return tokenVaultPDA;
   } catch (error) {
